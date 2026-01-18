@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 
-	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 	"github.com/spf13/cobra"
@@ -21,12 +20,6 @@ A new branch with the same name will be created automatically.`,
 		name := args[0]
 		if name == "" {
 			return fmt.Errorf("worktree name cannot be empty")
-		}
-
-		// Load config for tmux prefix
-		cfg, err := config.Load()
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
 		}
 
 		// Create worktree
@@ -50,17 +43,20 @@ A new branch with the same name will be created automatically.`,
 				return fmt.Errorf("failed to get worktree path: %w", err)
 			}
 
-			var wtPath string
+			// Find the newly created worktree
+			var newTree *worktree.Worktree
 			for _, tree := range trees {
-				if tree.Name == name {
-					wtPath = tree.Path
+				displayName := mgr.DisplayName(tree)
+				if displayName == name {
+					newTree = tree
 					break
 				}
 			}
 
-			if wtPath != "" {
-				sessionName := cfg.Tmux.Prefix + name
-				if err := tmux.CreateSession(sessionName, wtPath); err != nil {
+			if newTree != nil {
+				// Use full name for tmux session (project-name)
+				sessionName := mgr.FullName(newTree)
+				if err := tmux.CreateSession(sessionName, newTree.Path); err != nil {
 					fmt.Printf("⚠ Failed to create tmux session: %v\n", err)
 				} else {
 					fmt.Printf("✓ Created tmux session '%s'\n", sessionName)

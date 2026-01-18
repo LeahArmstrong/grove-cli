@@ -19,7 +19,8 @@ type Worktree struct {
 
 // Manager handles git worktree operations
 type Manager struct {
-	repoRoot string // Root of the git repository
+	repoRoot    string // Root of the git repository
+	projectName string // Cached project name
 }
 
 // NewManager creates a new worktree manager
@@ -41,13 +42,19 @@ func NewManager(repoRoot string) (*Manager, error) {
 }
 
 // Create creates a new worktree
+// The name parameter is the short name (e.g., "testing")
+// The directory will be created with the full name including project prefix
 func (m *Manager) Create(name, branch string) error {
 	if name == "" {
 		return fmt.Errorf("worktree name cannot be empty")
 	}
 
+	// Get project name for full worktree name
+	projectName := m.GetProjectName()
+	fullName := projectName + "-" + name
+
 	// Worktree path is relative to repo root's parent
-	wtPath := filepath.Join(filepath.Dir(m.repoRoot), name)
+	wtPath := filepath.Join(filepath.Dir(m.repoRoot), fullName)
 
 	// Check if worktree already exists
 	if _, err := os.Stat(wtPath); err == nil {
@@ -68,12 +75,18 @@ func (m *Manager) Create(name, branch string) error {
 }
 
 // CreateFromExisting creates a worktree from an existing branch
+// The name parameter is the short name (e.g., "testing")
+// The directory will be created with the full name including project prefix
 func (m *Manager) CreateFromExisting(name, branch string) error {
 	if name == "" {
 		return fmt.Errorf("worktree name cannot be empty")
 	}
 
-	wtPath := filepath.Join(filepath.Dir(m.repoRoot), name)
+	// Get project name for full worktree name
+	projectName := m.GetProjectName()
+	fullName := projectName + "-" + name
+
+	wtPath := filepath.Join(filepath.Dir(m.repoRoot), fullName)
 
 	// Check if worktree already exists
 	if _, err := os.Stat(wtPath); err == nil {
@@ -117,12 +130,13 @@ func (m *Manager) List() ([]*Worktree, error) {
 }
 
 // Remove removes a worktree
+// The name parameter can be either a short name or full name
 func (m *Manager) Remove(name string) error {
 	if name == "" {
 		return fmt.Errorf("worktree name cannot be empty")
 	}
 
-	// Find the worktree by name
+	// Find the worktree by name (try both display name and full path match)
 	trees, err := m.List()
 	if err != nil {
 		return fmt.Errorf("failed to list worktrees: %w", err)
@@ -130,6 +144,13 @@ func (m *Manager) Remove(name string) error {
 
 	var targetPath string
 	for _, tree := range trees {
+		// Match by display name (short name)
+		displayName := m.DisplayName(tree)
+		if displayName == name {
+			targetPath = tree.Path
+			break
+		}
+		// Also try matching by base path name (for backward compatibility)
 		if tree.Name == name {
 			targetPath = tree.Path
 			break

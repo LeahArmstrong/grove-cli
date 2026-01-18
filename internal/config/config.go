@@ -7,6 +7,7 @@ import (
 
 // Config represents the complete grove configuration
 type Config struct {
+	ProjectName   string        `toml:"project_name"`
 	Alias         string        `toml:"alias"`
 	ProjectsDir   string        `toml:"projects_dir"`
 	DefaultBranch string        `toml:"default_base_branch"`
@@ -103,6 +104,9 @@ func Load() (*Config, error) {
 func mergeConfigs(base, override *Config) *Config {
 	result := *base
 
+	if override.ProjectName != "" {
+		result.ProjectName = override.ProjectName
+	}
 	if override.Alias != "" {
 		result.Alias = override.Alias
 	}

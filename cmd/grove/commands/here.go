@@ -22,7 +22,9 @@ var hereCmd = &cobra.Command{
 			return fmt.Errorf("failed to get current worktree: %w", err)
 		}
 
-		fmt.Printf("Name:   %s\n", tree.Name)
+		// Display short name without project prefix
+		displayName := mgr.DisplayName(tree)
+		fmt.Printf("Name:   %s\n", displayName)
 		fmt.Printf("Branch: %s\n", tree.Branch)
 		fmt.Printf("Path:   %s\n", tree.Path)
 		fmt.Printf("Commit: %s\n", tree.Commit)

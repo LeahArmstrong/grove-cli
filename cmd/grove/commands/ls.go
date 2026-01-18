@@ -37,7 +37,9 @@ var lsCmd = &cobra.Command{
 			if tree.IsDirty {
 				status = "dirty"
 			}
-			fmt.Printf("%-30s %-20s %-10s %s\n", tree.Name, tree.Branch, status, tree.Path)
+			// Use DisplayName to show short name without project prefix
+			displayName := mgr.DisplayName(tree)
+			fmt.Printf("%-30s %-20s %-10s %s\n", displayName, tree.Branch, status, tree.Path)
 		}
 
 		return nil

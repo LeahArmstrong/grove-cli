@@ -147,8 +147,11 @@ func TestWorktreeCreate(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				// Verify worktree was created
-				wtPath := filepath.Join(tmpDir, "..", tt.wtName)
+				// Verify worktree was created with full name (project-name format)
+				// Get project name first
+				projectName := m.GetProjectName()
+				fullName := projectName + "-" + tt.wtName
+				wtPath := filepath.Join(tmpDir, "..", fullName)
 				if _, err := os.Stat(wtPath); os.IsNotExist(err) {
 					t.Errorf("Worktree directory not created: %s", wtPath)
 				}
