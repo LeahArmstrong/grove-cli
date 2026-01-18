@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -365,20 +366,7 @@ func TestGetDirtyFiles(t *testing.T) {
 		t.Errorf("getDirtyFiles() returned empty, want dirty file list")
 	}
 
-	if !contains(dirtyFiles, "test.txt") {
+	if !strings.Contains(dirtyFiles, "test.txt") {
 		t.Errorf("getDirtyFiles() = %q, want to contain 'test.txt'", dirtyFiles)
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsInMiddle(s, substr)))
-}
-
-func containsInMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
