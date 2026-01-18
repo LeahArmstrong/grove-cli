@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 	"github.com/spf13/cobra"
@@ -27,6 +28,12 @@ var lsCmd = &cobra.Command{
 		if len(trees) == 0 {
 			fmt.Println("No worktrees found")
 			return nil
+		}
+
+		// Load config for tmux prefix
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
 		}
 
 		// Get current worktree to mark it
@@ -62,15 +69,25 @@ var lsCmd = &cobra.Command{
 				status = "dirty"
 			}
 			
-			// Tmux status
+			// Tmux status - check multiple possible session names
 			tmuxStatus := "none"
 			if tmuxAvailable && sessions != nil {
-				// Try with full name (project-name format)
+				// Try with full name (matches tree.Name)
 				if session, ok := sessions[tree.Name]; ok {
 					if session.Attached {
 						tmuxStatus = "attached"
 					} else {
 						tmuxStatus = "detached"
+					}
+				} else {
+					// Try with config prefix + short name
+					prefixedName := cfg.Tmux.Prefix + tree.ShortName
+					if session, ok := sessions[prefixedName]; ok {
+						if session.Attached {
+							tmuxStatus = "attached"
+						} else {
+							tmuxStatus = "detached"
+						}
 					}
 				}
 			}
