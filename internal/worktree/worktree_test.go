@@ -217,3 +217,98 @@ func TestWorktreeList(t *testing.T) {
 		t.Errorf("List() returned %d worktrees, want at least 1", len(trees))
 	}
 }
+
+func TestWorktreeFind(t *testing.T) {
+	// Skip if git is not available
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	tmpDir := t.TempDir()
+
+	// Initialize a git repo
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user
+	configNameCmd := exec.Command("git", "config", "user.name", "Test User")
+	configNameCmd.Dir = tmpDir
+	if err := configNameCmd.Run(); err != nil {
+		t.Fatalf("Failed to config git user.name: %v", err)
+	}
+
+	configEmailCmd := exec.Command("git", "config", "user.email", "test@example.com")
+	configEmailCmd.Dir = tmpDir
+	if err := configEmailCmd.Run(); err != nil {
+		t.Fatalf("Failed to config git user.email: %v", err)
+	}
+
+	// Create initial commit
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	addCmd := exec.Command("git", "add", ".")
+	addCmd.Dir = tmpDir
+	if err := addCmd.Run(); err != nil {
+		t.Fatalf("Failed to add files: %v", err)
+	}
+
+	commitCmd := exec.Command("git", "commit", "-m", "initial commit")
+	commitCmd.Dir = tmpDir
+	if err := commitCmd.Run(); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	m := &Manager{
+		repoRoot: tmpDir,
+	}
+
+	// Create a worktree
+	err := m.Create("testing", "testing")
+	if err != nil {
+		t.Fatalf("Failed to create worktree: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		wtName   string
+		wantErr  bool
+		wantName string
+	}{
+		{
+			name:     "find existing worktree",
+			wtName:   "testing",
+			wantErr:  false,
+			wantName: "testing",
+		},
+		{
+			name:    "find non-existent worktree",
+			wtName:  "nonexistent",
+			wantErr: true,
+		},
+		{
+			name:    "empty name",
+			wtName:  "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wt, err := m.Find(tt.wtName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Find() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && wt != nil {
+				if wt.Name != tt.wantName {
+					t.Errorf("Find() returned worktree with name = %s, want %s", wt.Name, tt.wantName)
+				}
+			}
+		})
+	}
+}

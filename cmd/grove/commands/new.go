@@ -35,6 +35,12 @@ A new branch with the same name will be created automatically.`,
 			return fmt.Errorf("failed to initialize worktree manager: %w", err)
 		}
 
+		// Check if worktree already exists
+		if existingWt, _ := mgr.Find(name); existingWt != nil {
+			return fmt.Errorf("worktree '%s' already exists\n\nOptions:\n  • Switch to it: grove to %s\n  • Remove it first: grove rm %s\n  • Use different name: grove new %s-v2",
+				name, name, name, name)
+		}
+
 		// Use name as branch name
 		branchName := name
 		if err := mgr.Create(name, branchName); err != nil {

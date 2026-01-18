@@ -182,6 +182,26 @@ func (m *Manager) GetCurrent() (*Worktree, error) {
 	return nil, fmt.Errorf("current worktree not found")
 }
 
+// Find finds a worktree by name
+func (m *Manager) Find(name string) (*Worktree, error) {
+	if name == "" {
+		return nil, fmt.Errorf("worktree name cannot be empty")
+	}
+
+	trees, err := m.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	for _, tree := range trees {
+		if tree.Name == name {
+			return tree, nil
+		}
+	}
+
+	return nil, fmt.Errorf("worktree '%s' not found", name)
+}
+
 // isDirty checks if a worktree has uncommitted changes
 func (m *Manager) isDirty(path string) (bool, error) {
 	cmd := exec.Command("git", "status", "--porcelain")
