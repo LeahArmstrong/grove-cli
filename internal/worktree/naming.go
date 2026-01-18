@@ -15,12 +15,15 @@ type projectConfig struct {
 }
 
 // detectProjectName determines the project name using priority:
-// 1. .grove/config.toml -> project_name
-// 2. Git remote origin URL -> repo name
-// 3. Parent directory name as fallback
+// 1. .grove/config.toml -> project_name (from main worktree)
+// 2. Git remote origin URL -> repo name (from main worktree)
+// 3. Main worktree directory name as fallback
 func (m *Manager) detectProjectName() string {
-	// Priority 1: Check .grove/config.toml
-	configPath := filepath.Join(m.repoRoot, ".grove", "config.toml")
+	// Get the main worktree path (first in the list)
+	mainWorktreePath := m.getMainWorktreePath()
+	
+	// Priority 1: Check .grove/config.toml in main worktree
+	configPath := filepath.Join(mainWorktreePath, ".grove", "config.toml")
 	if data, err := os.ReadFile(configPath); err == nil {
 		var cfg projectConfig
 		if err := toml.Unmarshal(data, &cfg); err == nil && cfg.ProjectName != "" {
@@ -30,7 +33,7 @@ func (m *Manager) detectProjectName() string {
 
 	// Priority 2: Extract from git remote URL
 	cmd := exec.Command("git", "remote", "get-url", "origin")
-	cmd.Dir = m.repoRoot
+	cmd.Dir = mainWorktreePath
 	if output, err := cmd.Output(); err == nil {
 		remoteURL := strings.TrimSpace(string(output))
 		if projectName := extractProjectNameFromRemote(remoteURL); projectName != "" {
@@ -38,8 +41,34 @@ func (m *Manager) detectProjectName() string {
 		}
 	}
 
-	// Priority 3: Use directory name
-	return filepath.Base(m.repoRoot)
+	// Priority 3: Use main worktree directory name
+	return filepath.Base(mainWorktreePath)
+}
+
+// getMainWorktreePath returns the path to the main (first) worktree
+func (m *Manager) getMainWorktreePath() string {
+	// Try to get the list of worktrees
+	cmd := exec.Command("git", "worktree", "list", "--porcelain")
+	cmd.Dir = m.repoRoot
+	
+	output, err := cmd.Output()
+	if err != nil {
+		// Fallback to repoRoot if we can't get worktree list
+		return m.repoRoot
+	}
+	
+	// Parse the first worktree path
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "worktree ") {
+			path := strings.TrimPrefix(line, "worktree ")
+			return path
+		}
+	}
+	
+	// Fallback to repoRoot
+	return m.repoRoot
 }
 
 // extractProjectNameFromRemote extracts the repository name from a git remote URL
@@ -73,9 +102,20 @@ func (m *Manager) FullName(wt *Worktree) string {
 		m.projectName = m.detectProjectName()
 	}
 
-	// If the worktree is the main repo, return just the project name
-	if wt.Path == m.repoRoot {
+	// Get main worktree path to check if this is the main worktree
+	mainPath := m.getMainWorktreePath()
+	if wt.Path == mainPath {
+		// This is the main worktree, return just the project name
 		return m.projectName
+	}
+
+	// Get the base name from the path
+	baseName := filepath.Base(wt.Path)
+	
+	// If it already has the project prefix, return as-is
+	prefix := m.projectName + "-"
+	if strings.HasPrefix(baseName, prefix) {
+		return baseName
 	}
 
 	// Return project-name format
@@ -93,9 +133,11 @@ func (m *Manager) DisplayName(wt *Worktree) string {
 	// Get the base name from the path
 	baseName := filepath.Base(wt.Path)
 
-	// If it's the main repo, return the project name
-	if wt.Path == m.repoRoot {
-		return baseName
+	// Get main worktree path to check if this is the main worktree
+	mainPath := m.getMainWorktreePath()
+	if wt.Path == mainPath {
+		// This is the main worktree, return project name only
+		return m.projectName
 	}
 
 	// Try to strip the project prefix
