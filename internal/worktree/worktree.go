@@ -227,8 +227,9 @@ func (m *Manager) isDirty(path string) (bool, error) {
 
 // getCommitInfo retrieves detailed commit information for a worktree
 func (m *Manager) getCommitInfo(path string) (shortHash, message, age string, err error) {
-	// Format: full_hash|short_hash|subject|relative_date
-	cmd := exec.Command("git", "log", "-1", "--format=%H|%h|%s|%cr")
+	// Use a delimiter that's unlikely to appear in commit messages
+	// Format: full_hash<delim>short_hash<delim>subject<delim>relative_date
+	cmd := exec.Command("git", "log", "-1", "--format=%H%x1E%h%x1E%s%x1E%cr")
 	cmd.Dir = path
 
 	output, err := cmd.Output()
@@ -236,7 +237,8 @@ func (m *Manager) getCommitInfo(path string) (shortHash, message, age string, er
 		return "", "", "", fmt.Errorf("failed to get commit info: %w", err)
 	}
 
-	parts := strings.Split(strings.TrimSpace(string(output)), "|")
+	// Split by ASCII Record Separator (0x1E) which is safe for commit messages
+	parts := strings.Split(strings.TrimSpace(string(output)), "\x1E")
 	if len(parts) < 4 {
 		return "", "", "", fmt.Errorf("unexpected git log output format")
 	}

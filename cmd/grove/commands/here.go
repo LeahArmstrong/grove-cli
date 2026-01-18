@@ -26,9 +26,13 @@ var hereCmd = &cobra.Command{
 		}
 
 		// Determine project name from path
+		// According to naming convention, worktrees are named {project}-{name}
+		// The main worktree is just the project name
 		projectName := filepath.Base(tree.Path)
 
-		// Determine tmux session name (project-name format expected)
+		// The tmux session name should match the directory name
+		// For main worktree: project name
+		// For other worktrees: project-name (full directory name)
 		tmuxSessionName := projectName
 		tmuxStatus := tmux.GetSessionStatus(tmuxSessionName)
 
