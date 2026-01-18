@@ -217,3 +217,168 @@ func TestWorktreeList(t *testing.T) {
 		t.Errorf("List() returned %d worktrees, want at least 1", len(trees))
 	}
 }
+
+func TestGetCommitInfo(t *testing.T) {
+	// Skip if git is not available
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	tmpDir := t.TempDir()
+
+	// Initialize a git repo
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user
+	configNameCmd := exec.Command("git", "config", "user.name", "Test User")
+	configNameCmd.Dir = tmpDir
+	if err := configNameCmd.Run(); err != nil {
+		t.Fatalf("Failed to config git user.name: %v", err)
+	}
+
+	configEmailCmd := exec.Command("git", "config", "user.email", "test@example.com")
+	configEmailCmd.Dir = tmpDir
+	if err := configEmailCmd.Run(); err != nil {
+		t.Fatalf("Failed to config git user.email: %v", err)
+	}
+
+	// Create initial commit with a known message
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	addCmd := exec.Command("git", "add", ".")
+	addCmd.Dir = tmpDir
+	if err := addCmd.Run(); err != nil {
+		t.Fatalf("Failed to add files: %v", err)
+	}
+
+	commitMsg := "Test commit message"
+	commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+	commitCmd.Dir = tmpDir
+	if err := commitCmd.Run(); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	m := &Manager{
+		repoRoot: tmpDir,
+	}
+
+	shortHash, message, age, err := m.getCommitInfo(tmpDir)
+	if err != nil {
+		t.Fatalf("getCommitInfo() error = %v", err)
+	}
+
+	// Check short hash is 7 characters
+	if len(shortHash) != 7 {
+		t.Errorf("getCommitInfo() short hash length = %d, want 7", len(shortHash))
+	}
+
+	// Check message matches
+	if message != commitMsg {
+		t.Errorf("getCommitInfo() message = %q, want %q", message, commitMsg)
+	}
+
+	// Check age is not empty
+	if age == "" {
+		t.Errorf("getCommitInfo() age is empty")
+	}
+}
+
+func TestGetDirtyFiles(t *testing.T) {
+	// Skip if git is not available
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	tmpDir := t.TempDir()
+
+	// Initialize a git repo
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user
+	configNameCmd := exec.Command("git", "config", "user.name", "Test User")
+	configNameCmd.Dir = tmpDir
+	if err := configNameCmd.Run(); err != nil {
+		t.Fatalf("Failed to config git user.name: %v", err)
+	}
+
+	configEmailCmd := exec.Command("git", "config", "user.email", "test@example.com")
+	configEmailCmd.Dir = tmpDir
+	if err := configEmailCmd.Run(); err != nil {
+		t.Fatalf("Failed to config git user.email: %v", err)
+	}
+
+	// Create initial commit
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	addCmd := exec.Command("git", "add", ".")
+	addCmd.Dir = tmpDir
+	if err := addCmd.Run(); err != nil {
+		t.Fatalf("Failed to add files: %v", err)
+	}
+
+	commitCmd := exec.Command("git", "commit", "-m", "initial commit")
+	commitCmd.Dir = tmpDir
+	if err := commitCmd.Run(); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	m := &Manager{
+		repoRoot: tmpDir,
+	}
+
+	// Initially should be clean
+	dirtyFiles, err := m.getDirtyFiles(tmpDir)
+	if err != nil {
+		t.Fatalf("getDirtyFiles() error = %v", err)
+	}
+
+	if dirtyFiles != "" {
+		t.Errorf("getDirtyFiles() = %q, want empty string (clean repo)", dirtyFiles)
+	}
+
+	// Make a change
+	if err := os.WriteFile(testFile, []byte("modified"), 0644); err != nil {
+		t.Fatalf("Failed to modify test file: %v", err)
+	}
+
+	// Now should be dirty
+	dirtyFiles, err = m.getDirtyFiles(tmpDir)
+	if err != nil {
+		t.Fatalf("getDirtyFiles() error = %v", err)
+	}
+
+	if dirtyFiles == "" {
+		t.Errorf("getDirtyFiles() returned empty, want dirty file list")
+	}
+
+	if !contains(dirtyFiles, "test.txt") {
+		t.Errorf("getDirtyFiles() = %q, want to contain 'test.txt'", dirtyFiles)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsInMiddle(s, substr)))
+}
+
+func containsInMiddle(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

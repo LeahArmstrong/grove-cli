@@ -237,6 +237,36 @@ func GetLastSession() (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
+// GetSessionStatus returns the status of a tmux session
+// Returns: "attached", "detached", or "none"
+func GetSessionStatus(name string) string {
+	if !IsTmuxAvailable() {
+		return "none"
+	}
+
+	exists, err := SessionExists(name)
+	if err != nil || !exists {
+		return "none"
+	}
+
+	// Get list of sessions to check if attached
+	sessions, err := ListSessions()
+	if err != nil {
+		return "none"
+	}
+
+	for _, session := range sessions {
+		if session.Name == name {
+			if session.Attached {
+				return "attached"
+			}
+			return "detached"
+		}
+	}
+
+	return "none"
+}
+
 // parseIntOrZero attempts to parse an integer, returning 0 on error
 func parseIntOrZero(s string) int {
 	i, err := strconv.Atoi(s)

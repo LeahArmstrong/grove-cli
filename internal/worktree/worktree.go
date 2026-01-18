@@ -10,11 +10,15 @@ import (
 
 // Worktree represents a git worktree
 type Worktree struct {
-	Name    string // Short name (derived from path)
-	Path    string // Absolute path to worktree
-	Branch  string // Branch name or "detached"
-	Commit  string // Commit hash
-	IsDirty bool   // Whether there are uncommitted changes
+	Name          string // Short name (derived from path)
+	Path          string // Absolute path to worktree
+	Branch        string // Branch name or "detached"
+	Commit        string // Commit hash (full)
+	ShortCommit   string // Short commit hash (7 chars)
+	CommitMessage string // Commit message subject
+	CommitAge     string // Relative commit time
+	IsDirty       bool   // Whether there are uncommitted changes
+	DirtyFiles    string // List of dirty files (from git status --porcelain)
 }
 
 // Manager handles git worktree operations
@@ -175,6 +179,22 @@ func (m *Manager) GetCurrent() (*Worktree, error) {
 
 	for _, tree := range trees {
 		if tree.Path == currentPath {
+			// Enrich with commit information
+			shortHash, message, age, err := m.getCommitInfo(tree.Path)
+			if err == nil {
+				tree.ShortCommit = shortHash
+				tree.CommitMessage = message
+				tree.CommitAge = age
+			}
+
+			// Get dirty files if the worktree is dirty
+			if tree.IsDirty {
+				dirtyFiles, err := m.getDirtyFiles(tree.Path)
+				if err == nil {
+					tree.DirtyFiles = dirtyFiles
+				}
+			}
+
 			return tree, nil
 		}
 	}
@@ -193,6 +213,38 @@ func (m *Manager) isDirty(path string) (bool, error) {
 	}
 
 	return len(strings.TrimSpace(string(output))) > 0, nil
+}
+
+// getDirtyFiles returns the list of dirty files from git status
+func (m *Manager) getDirtyFiles(path string) (string, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = path
+
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// getCommitInfo retrieves detailed commit information for a worktree
+func (m *Manager) getCommitInfo(path string) (shortHash, message, age string, err error) {
+	// Format: full_hash|short_hash|subject|relative_date
+	cmd := exec.Command("git", "log", "-1", "--format=%H|%h|%s|%cr")
+	cmd.Dir = path
+
+	output, err := cmd.Output()
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to get commit info: %w", err)
+	}
+
+	parts := strings.Split(strings.TrimSpace(string(output)), "|")
+	if len(parts) < 4 {
+		return "", "", "", fmt.Errorf("unexpected git log output format")
+	}
+
+	return parts[1], parts[2], parts[3], nil
 }
 
 // parseWorktreeList parses the output of 'git worktree list --porcelain'

@@ -154,3 +154,67 @@ func TestGetLastSession(t *testing.T) {
 		t.Errorf("GetLastSession() = %s, want %s", last, testSession)
 	}
 }
+
+func TestGetSessionStatus(t *testing.T) {
+	// Skip if tmux is not available
+	if !IsTmuxAvailable() {
+		t.Skip("tmux not available")
+	}
+
+	tests := []struct {
+		name           string
+		sessionName    string
+		createSession  bool
+		expectedStatus string
+	}{
+		{
+			name:           "session does not exist",
+			sessionName:    "test-status-nonexistent",
+			createSession:  false,
+			expectedStatus: "none",
+		},
+		{
+			name:           "session exists and detached",
+			sessionName:    "test-status-detached",
+			createSession:  true,
+			expectedStatus: "detached",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clean up first
+			KillSession(tt.sessionName)
+
+			if tt.createSession {
+				if err := CreateSession(tt.sessionName, "/tmp"); err != nil {
+					t.Fatalf("Failed to create test session: %v", err)
+				}
+				defer KillSession(tt.sessionName)
+			}
+
+			status := GetSessionStatus(tt.sessionName)
+			if status != tt.expectedStatus {
+				t.Errorf("GetSessionStatus() = %s, want %s", status, tt.expectedStatus)
+			}
+		})
+	}
+}
+
+func TestGetSessionStatusNoTmux(t *testing.T) {
+	// Test behavior when tmux is not available
+	// This is harder to test, but we can at least check the function exists
+	status := GetSessionStatus("any-session")
+	// Should return "none" or a valid status
+	validStatuses := []string{"none", "attached", "detached"}
+	found := false
+	for _, v := range validStatuses {
+		if status == v {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("GetSessionStatus() returned invalid status: %s", status)
+	}
+}
