@@ -10,11 +10,13 @@ import (
 
 // Worktree represents a git worktree
 type Worktree struct {
-	Name    string // Short name (derived from path)
-	Path    string // Absolute path to worktree
-	Branch  string // Branch name or "detached"
-	Commit  string // Commit hash
-	IsDirty bool   // Whether there are uncommitted changes
+	Name      string // Short name (derived from path)
+	Path      string // Absolute path to worktree
+	Branch    string // Branch name or "detached"
+	Commit    string // Commit hash
+	IsDirty   bool   // Whether there are uncommitted changes
+	IsMain    bool   // Whether this is the main worktree
+	ShortName string // Short name without project prefix
 }
 
 // Manager handles git worktree operations
@@ -103,7 +105,8 @@ func (m *Manager) List() ([]*Worktree, error) {
 		return nil, fmt.Errorf("failed to list worktrees: %w", err)
 	}
 
-	trees := parseWorktreeList(string(output))
+	projectName := m.GetProjectName()
+	trees := parseWorktreeList(string(output), m.repoRoot, projectName)
 
 	// Check dirty status for each worktree
 	for _, tree := range trees {
@@ -195,8 +198,53 @@ func (m *Manager) isDirty(path string) (bool, error) {
 	return len(strings.TrimSpace(string(output))) > 0, nil
 }
 
+// GetProjectName extracts the project name from the repository
+func (m *Manager) GetProjectName() string {
+	// Try to get from git remote URL first
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = m.repoRoot
+	if output, err := cmd.Output(); err == nil {
+		url := strings.TrimSpace(string(output))
+		// Extract repo name from URL
+		// Examples:
+		// https://github.com/user/repo.git -> repo
+		// git@github.com:user/repo.git -> repo
+		// /path/to/repo -> repo
+		parts := strings.Split(url, "/")
+		if len(parts) > 0 {
+			name := parts[len(parts)-1]
+			name = strings.TrimSuffix(name, ".git")
+			if name != "" {
+				return name
+			}
+		}
+	}
+	
+	// Fall back to directory name
+	return filepath.Base(m.repoRoot)
+}
+
+// DisplayName returns the display name for a worktree
+// Main worktree returns "main", others return short name without project prefix
+func (w *Worktree) DisplayName() string {
+	if w.IsMain {
+		return "main"
+	}
+	return w.ShortName
+}
+
+// ExtractShortName removes the project prefix from a worktree name
+// e.g., "grove-cli-testing" with project "grove-cli" returns "testing"
+func ExtractShortName(fullName, projectName string) string {
+	prefix := projectName + "-"
+	if strings.HasPrefix(fullName, prefix) {
+		return strings.TrimPrefix(fullName, prefix)
+	}
+	return fullName
+}
+
 // parseWorktreeList parses the output of 'git worktree list --porcelain'
-func parseWorktreeList(output string) []*Worktree {
+func parseWorktreeList(output, repoRoot, projectName string) []*Worktree {
 	var trees []*Worktree
 	var current *Worktree
 
@@ -213,9 +261,15 @@ func parseWorktreeList(output string) []*Worktree {
 
 		if strings.HasPrefix(line, "worktree ") {
 			path := strings.TrimPrefix(line, "worktree ")
+			name := filepath.Base(path)
+			isMain := path == repoRoot
+			shortName := ExtractShortName(name, projectName)
+			
 			current = &Worktree{
-				Path: path,
-				Name: filepath.Base(path),
+				Path:      path,
+				Name:      name,
+				IsMain:    isMain,
+				ShortName: shortName,
 			}
 		} else if strings.HasPrefix(line, "HEAD ") {
 			if current != nil {

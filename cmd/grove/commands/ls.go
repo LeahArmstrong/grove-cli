@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 	"github.com/spf13/cobra"
 )
@@ -28,16 +29,59 @@ var lsCmd = &cobra.Command{
 			return nil
 		}
 
+		// Get current worktree to mark it
+		currentTree, _ := mgr.GetCurrent()
+		
+		// Get tmux sessions for status
+		tmuxAvailable := tmux.IsTmuxAvailable()
+		var sessions map[string]*tmux.Session
+		if tmuxAvailable {
+			sessionList, err := tmux.ListSessions()
+			if err == nil {
+				sessions = make(map[string]*tmux.Session)
+				for _, s := range sessionList {
+					sessions[s.Name] = s
+				}
+			}
+		}
+
 		// Print header
-		fmt.Printf("%-30s %-20s %-10s %s\n", "NAME", "BRANCH", "STATUS", "PATH")
-		fmt.Println("─────────────────────────────────────────────────────────────────────────────")
+		fmt.Printf("%-3s %-12s %-15s %-10s %-12s %s\n", "", "NAME", "BRANCH", "STATUS", "TMUX", "PATH")
+		fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────")
 
 		for _, tree := range trees {
+			// Current indicator
+			indicator := "  "
+			if currentTree != nil && tree.Path == currentTree.Path {
+				indicator = "● "
+			}
+			
+			// Git status
 			status := "clean"
 			if tree.IsDirty {
 				status = "dirty"
 			}
-			fmt.Printf("%-30s %-20s %-10s %s\n", tree.Name, tree.Branch, status, tree.Path)
+			
+			// Tmux status
+			tmuxStatus := "none"
+			if tmuxAvailable && sessions != nil {
+				// Try with full name (project-name format)
+				if session, ok := sessions[tree.Name]; ok {
+					if session.Attached {
+						tmuxStatus = "attached"
+					} else {
+						tmuxStatus = "detached"
+					}
+				}
+			}
+			
+			fmt.Printf("%s %-12s %-15s %-10s %-12s %s\n", 
+				indicator, 
+				tree.DisplayName(), 
+				tree.Branch, 
+				status, 
+				tmuxStatus,
+				tree.Path)
 		}
 
 		return nil
