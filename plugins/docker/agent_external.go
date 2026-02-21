@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/LeahArmstrong/grove-cli/internal/config"
@@ -79,6 +81,17 @@ func (s *agentExternalStrategy) Up(worktreePath string, detach bool) error {
 			return err
 		}
 	}
+
+	// Show slot usage
+	active, _ := s.slots.ListActive()
+	fmt.Printf("Using slot %d/%d", slot, s.slots.maxSlots)
+	if len(active) > 1 {
+		fmt.Printf(" (%d active)", len(active))
+	}
+	fmt.Println()
+
+	// Warn about memory if possible
+	warnMemoryUsage(len(active))
 
 	env := s.agentEnv(worktreePath, slot)
 
@@ -331,4 +344,59 @@ func checkDockerNetwork(networkName string) error {
 	}
 
 	return fmt.Errorf("main infrastructure must be running: Docker network %q not found\nEnsure the shared compose stack is running first", networkName)
+}
+
+// estimatedRAMPerStack is the approximate RAM per full agent stack in GB.
+const estimatedRAMPerStack = 1.5
+
+// warnMemoryUsage prints a warning if system memory is low relative to active stacks.
+// This is best-effort — silently does nothing if memory info is unavailable.
+func warnMemoryUsage(activeStacks int) {
+	totalGB := totalSystemMemoryGB()
+	if totalGB <= 0 {
+		return
+	}
+
+	estimatedUsage := float64(activeStacks) * estimatedRAMPerStack
+	// Rough estimate: base system + main stack needs ~8GB
+	available := totalGB - 8.0 - estimatedUsage
+
+	if available < 2.0 {
+		fmt.Fprintf(os.Stderr, "Warning: low memory — %.0fGB total with %d active stack(s)\n", totalGB, activeStacks)
+		fmt.Fprintf(os.Stderr, "  Consider stopping unused stacks with 'grove down'\n")
+	}
+}
+
+// totalSystemMemoryGB returns total system RAM in GB, or 0 if unavailable.
+func totalSystemMemoryGB() float64 {
+	if runtime.GOOS == "darwin" {
+		out, err := exec.Command("sysctl", "-n", "hw.memsize").Output()
+		if err != nil {
+			return 0
+		}
+		bytes, err := strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
+		if err != nil {
+			return 0
+		}
+		return float64(bytes) / (1024 * 1024 * 1024)
+	}
+	// Linux: read /proc/meminfo
+	if runtime.GOOS == "linux" {
+		out, err := os.ReadFile("/proc/meminfo")
+		if err != nil {
+			return 0
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.HasPrefix(line, "MemTotal:") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					kb, err := strconv.ParseUint(fields[1], 10, 64)
+					if err == nil {
+						return float64(kb) / (1024 * 1024)
+					}
+				}
+			}
+		}
+	}
+	return 0
 }
