@@ -1,4 +1,4 @@
-.PHONY: build test test-integration test-all lint fmt clean install help test-fixture
+.PHONY: build test test-integration test-all lint fmt clean install help test-fixture test-update-golden demo
 
 # Variables
 BINARY_NAME=grove
@@ -74,3 +74,12 @@ tidy: ## Tidy go.mod
 	@echo "Tidying go.mod..."
 	@go mod tidy
 	@echo "go.mod tidied"
+
+test-update-golden: ## Update golden test files after intentional visual changes
+	@echo "Updating golden files..."
+	@go test ./internal/tui/ -run TestGolden -update
+	@echo "Golden files updated. Review with: git diff internal/tui/testdata/"
+
+demo: build ## Record VHS demo GIFs (requires vhs: brew install vhs)
+	@command -v vhs > /dev/null || (echo "Install vhs: brew install vhs" && exit 1)
+	@for tape in tapes/*.tape; do echo "Recording $$tape..."; vhs $$tape; done
