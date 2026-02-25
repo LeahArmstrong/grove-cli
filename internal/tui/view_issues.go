@@ -102,7 +102,7 @@ func (m Model) handleIssueKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.Text != "":
+	case isPrintableText(msg.Text):
 		s.Filter += msg.Text
 		s.Cursor = 0
 		return m, nil

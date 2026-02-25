@@ -716,8 +716,9 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Quick-switch: number keys 1-9 jump to nth visible item
 	// Disabled when the list has an active filter to avoid switching to hidden items
-	if msg.Text != "" && len(msg.Text) == 1 && m.list.FilterState() == list.Unfiltered {
-		r := rune(msg.Text[0])
+	runes := []rune(msg.Text)
+	if len(runes) == 1 && m.list.FilterState() == list.Unfiltered {
+		r := runes[0]
 		if r >= '1' && r <= '9' {
 			idx := int(r - '1')
 			items := m.list.Items()
@@ -952,7 +953,7 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		}
 		return m, nil
 
-	case msg.Text != "":
+	case isPrintableText(msg.Text):
 		s.BranchFilter += msg.Text
 		s.BranchCursor = 0
 		return m, nil
@@ -1009,7 +1010,7 @@ func (m Model) handleNameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.Text != "":
+	case isPrintableText(msg.Text):
 		s.Name += msg.Text
 		if errMsg := ValidateWorktreeName(s.Name); errMsg != "" {
 			s.Error = errMsg

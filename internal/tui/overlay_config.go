@@ -433,6 +433,10 @@ func (m Model) handleConfigEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				s.EditOptionCursor++
 			}
 		case key.Matches(msg, m.keys.Enter):
+			if len(field.Options) == 0 {
+				s.Editing = false
+				return m, nil
+			}
 			field.Value = field.Options[s.EditOptionCursor]
 			if field.Value != s.EditOriginalValue {
 				s.Dirty = true
@@ -453,7 +457,7 @@ func (m Model) handleConfigEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if len(s.EditBuffer) > 0 {
 				s.EditBuffer = s.EditBuffer[:len(s.EditBuffer)-1]
 			}
-		case msg.Text != "":
+		case isPrintableText(msg.Text):
 			s.EditBuffer += msg.Text
 		}
 		return m, nil
