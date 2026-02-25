@@ -97,12 +97,18 @@ func TestHighContrastScheme_MeetsWCAGAA(t *testing.T) {
 
 	for name, fg := range fgColors {
 		t.Run(name+"/dark", func(t *testing.T) {
+			if _, _, _, err := HexToRGB(fg.Dark); err != nil {
+				t.Fatalf("%s dark color is invalid: %v", name, err)
+			}
 			ratio := ContrastRatio(fg.Dark, scheme.SurfaceBg.Dark)
 			if ratio < minRatio {
 				t.Errorf("%s dark: ratio %.2f < %.1f", name, ratio, minRatio)
 			}
 		})
 		t.Run(name+"/light", func(t *testing.T) {
+			if _, _, _, err := HexToRGB(fg.Light); err != nil {
+				t.Fatalf("%s light color is invalid: %v", name, err)
+			}
 			ratio := ContrastRatio(fg.Light, scheme.SurfaceBg.Light)
 			if ratio < minRatio {
 				t.Errorf("%s light: ratio %.2f < %.1f", name, ratio, minRatio)

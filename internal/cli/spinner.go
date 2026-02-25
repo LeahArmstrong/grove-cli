@@ -95,6 +95,10 @@ func Spin(message string, fn func() error) error {
 }
 
 // SpinWithResult shows a spinner while fn executes and returns both the result and error.
+//
+// Error precedence: if fn returns an error, that error is returned (most specific).
+// If fn succeeds but the Bubbletea program itself fails (e.g., terminal error) or
+// the user cancels with ctrl+c, the framework error is returned instead.
 func SpinWithResult[T any](message string, fn func() (T, error)) (T, error) {
 	var result T
 	var fnErr error

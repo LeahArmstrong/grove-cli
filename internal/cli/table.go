@@ -118,10 +118,14 @@ func (t *Table) Render() {
 				display = display[:widths[i]-1] + "…"
 			}
 
-			// Apply color function if available
+			// Apply color function if available.
+			// ColorFn receives the original value for correct status matching;
+			// padding is based on the display (possibly truncated) length.
+			// If truncation occurs on a colored column, the rendered text may
+			// slightly exceed the column width — an acceptable tradeoff since
+			// MinWidth should be set to accommodate expected values.
 			if useColor && t.columns[i].ColorFn != nil {
-				colored := t.columns[i].ColorFn(display)
-				// Pad after coloring (pad with spaces to fill width)
+				colored := t.columns[i].ColorFn(val)
 				padding := widths[i] - len(display)
 				if padding > 0 {
 					colored += strings.Repeat(" ", padding)

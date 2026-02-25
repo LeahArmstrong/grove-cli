@@ -219,8 +219,15 @@ var lsCmd = &cobra.Command{
 			return cli.StatusText(w, value, value)
 		}
 
+		indicatorColorFn := func(value string) string {
+			if value != "" {
+				return cli.Accent(w, value)
+			}
+			return value
+		}
+
 		columns := []cli.Column{
-			{Title: "", MinWidth: 2, MaxWidth: 2},
+			{Title: "", MinWidth: 2, MaxWidth: 2, ColorFn: indicatorColorFn},
 			{Title: "NAME", MaxWidth: 30},
 			{Title: "BRANCH", MaxWidth: 25},
 			{Title: "STATUS", MinWidth: 10, ColorFn: statusColorFn},
@@ -236,7 +243,7 @@ var lsCmd = &cobra.Command{
 		for _, tree := range trees {
 			indicator := ""
 			if currentTree != nil && tree.Path == currentTree.Path {
-				indicator = cli.Accent(w, "●")
+				indicator = "●"
 			}
 
 			status := "clean"
