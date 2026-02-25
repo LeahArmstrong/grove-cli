@@ -173,6 +173,8 @@ func renderTmuxValue(item *WorktreeItem) string {
 	}
 }
 
+const maxChangesShown = 15
+
 // renderChangesSection renders the changed files list with type indicators.
 func renderChangesSection(files []string, width int) string {
 	header := Styles.DetailLabel.Render("── Changes ") +
@@ -180,6 +182,12 @@ func renderChangesSection(files []string, width int) string {
 
 	var lines []string
 	lines = append(lines, header)
+
+	overflow := 0
+	if len(files) > maxChangesShown {
+		overflow = len(files) - maxChangesShown
+		files = files[:maxChangesShown]
+	}
 
 	for _, f := range files {
 		f = strings.TrimSpace(f)
@@ -200,6 +208,10 @@ func renderChangesSection(files []string, width int) string {
 			styled = Styles.DetailFileMod.Render("M " + file)
 		}
 		lines = append(lines, " "+styled)
+	}
+
+	if overflow > 0 {
+		lines = append(lines, " "+Styles.DetailDim.Render(fmt.Sprintf("… and %d more", overflow)))
 	}
 
 	return strings.Join(lines, "\n")

@@ -12,32 +12,45 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/plugins"
 )
 
-// delegateColumns holds responsive column widths for list rendering.
-type delegateColumns struct {
-	Name   int
-	Branch int
-	Age    int
-}
-
-// delegateColumnsV2 calculates column widths based on terminal width.
-func delegateColumnsV2(width int) delegateColumns {
-	switch {
-	case width > 120:
-		return delegateColumns{Name: 24, Branch: 20, Age: 8}
-	case width > 90:
-		return delegateColumns{Name: 20, Branch: 16, Age: 8}
-	case width >= 80:
-		return delegateColumns{Name: 16, Branch: 12, Age: 6}
-	case width >= 60:
-		return delegateColumns{Name: 14, Branch: 10, Age: 0}
-	default:
-		// Very narrow: name only, no branch or age
-		name := 12
-		if width < 50 {
-			name = 10
+// ComputeDelegateWidthsV2 computes content-adaptive column widths for the V2
+// delegate by scanning items for max name/branch rune lengths.
+func ComputeDelegateWidthsV2(items []list.Item, width int) WorktreeDelegateV2 {
+	maxName, maxBranch := 0, 0
+	for _, li := range items {
+		item, ok := li.(WorktreeItem)
+		if !ok {
+			continue
 		}
-		return delegateColumns{Name: name, Branch: 0, Age: 0}
+		if n := len([]rune(item.ShortName)); n > maxName {
+			maxName = n
+		}
+		if n := len([]rune(item.Branch)); n > maxBranch {
+			maxBranch = n
+		}
 	}
+
+	d := WorktreeDelegateV2{}
+
+	// Name: use actual max, capped at 40, min 10
+	d.NameWidth = maxName
+	if d.NameWidth > 40 {
+		d.NameWidth = 40
+	}
+	if d.NameWidth < 10 {
+		d.NameWidth = 10
+	}
+
+	// Branch: use actual max, capped at 30, min 0; hidden at narrow widths
+	if width < 60 {
+		d.BranchWidth = 0
+	} else {
+		d.BranchWidth = maxBranch
+		if d.BranchWidth > 30 {
+			d.BranchWidth = 30
+		}
+	}
+
+	return d
 }
 
 // worktreeIndicator returns the leading indicator for a worktree item.
@@ -126,11 +139,14 @@ func worktreeSyncBadgeV2(item WorktreeItem) string {
 }
 
 // WorktreeDelegateV2 implements list.ItemDelegate with visual indicators.
-type WorktreeDelegateV2 struct{}
+type WorktreeDelegateV2 struct {
+	NameWidth   int
+	BranchWidth int
+}
 
-// NewWorktreeDelegateV2 creates a new V2 delegate.
+// NewWorktreeDelegateV2 creates a new V2 delegate with default widths.
 func NewWorktreeDelegateV2() WorktreeDelegateV2 {
-	return WorktreeDelegateV2{}
+	return WorktreeDelegateV2{NameWidth: 20, BranchWidth: 16}
 }
 
 func (d WorktreeDelegateV2) Height() int                             { return 2 }
@@ -145,7 +161,6 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 
 	selected := index == m.Index()
 	width := m.Width()
-	cols := delegateColumnsV2(width)
 
 	// Number prefix for quick-switch (1-9)
 	numPrefix := "  "
@@ -166,7 +181,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 			nameStyle = nameStyle.Bold(true)
 		}
 	}
-	name := nameStyle.Render(truncate(item.ShortName, cols.Name))
+	name := nameStyle.Render(truncate(item.ShortName, d.NameWidth))
 
 	// Line 1: numPrefix + indicator + name
 	line1 := numPrefix + indicator + name
@@ -175,11 +190,11 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	prefixPad := "     " // align under name (2 num + 1 indicator + 1 space + 1)
 	var metaParts []string
 
-	if cols.Branch > 0 {
-		metaParts = append(metaParts, truncate(item.Branch, cols.Branch))
+	if d.BranchWidth > 0 {
+		metaParts = append(metaParts, truncate(item.Branch, d.BranchWidth))
 	}
 
-	if cols.Age > 0 && item.CommitAge != "" {
+	if item.CommitAge != "" {
 		metaParts = append(metaParts, compactAge(item.CommitAge))
 	}
 

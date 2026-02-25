@@ -5,11 +5,25 @@ import (
 	"strings"
 )
 
+// prOverlayWidth returns a fixed overlay width based on terminal width.
+func prOverlayWidth(termWidth int) int {
+	w := termWidth - 8
+	if w > 100 {
+		w = 100
+	}
+	if w < 50 {
+		w = 50
+	}
+	return w
+}
+
 // renderPRViewV2 renders the PR browser with two-line items, draft labels,
 // diff stats, and worktree badges.
 func renderPRViewV2(s *PRViewState, width int, spinnerView string) string {
+	overlayWidth := prOverlayWidth(width)
+
 	if s.Loading {
-		return Styles.OverlayBorderInfo.Render(
+		return Styles.OverlayBorderInfo.Width(overlayWidth).Render(
 			Styles.OverlayTitle.Render("Pull Requests") + "\n\n" +
 				spinnerView + " Loading PRs...",
 		)
@@ -21,7 +35,7 @@ func renderPRViewV2(s *PRViewState, width int, spinnerView string) string {
 			creatingMsg = fmt.Sprintf("Creating worktree for PR #%d: %s...",
 				s.CreatingPR.Number, truncate(s.CreatingPR.Title, 40))
 		}
-		return Styles.OverlayBorderInfo.Render(
+		return Styles.OverlayBorderInfo.Width(overlayWidth).Render(
 			Styles.OverlayTitle.Render("Pull Requests") + "\n\n" +
 				spinnerView + " " + creatingMsg,
 		)
@@ -105,7 +119,7 @@ func renderPRViewV2(s *PRViewState, width int, spinnerView string) string {
 
 	b.WriteString("\n" + Styles.Footer.Render("[enter] create worktree  [tab] preview  [esc] close  type to filter"))
 
-	return Styles.OverlayBorderInfo.Render(
+	return Styles.OverlayBorderInfo.Width(overlayWidth).Render(
 		Styles.OverlayTitle.Render("Pull Requests") + "\n\n" + b.String(),
 	)
 }

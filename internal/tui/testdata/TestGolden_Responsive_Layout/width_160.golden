@@ -1,15 +1,15 @@
  [1m[1mtest-project[m  ·  5 worktrees  ·  on root                                                                                                                ● root[m 
                                                                                                 │                                                               
  1 ❯ [1mroot[m                                                                                       │                                                               
-      root · 2h ago · dirty                                                                     │                                                               
- 2 ○ feature-auth                                                                               │                                                               
-      feature-auth · 2h ago · clean                                                             │                                                               
+      2h ago · dirty                                                                            │                                                               
+ 2 ○ feature-a…                                                                                 │                                                               
+      2h ago · clean                                                                            │                                                               
  3 ○ fix-bug                                                                                    │                                                               
-      fix-bug · 2h ago · clean                                                                  │                                                               
+      2h ago · clean                                                                            │                                                               
  4 ● testing                                                                                    │                                                               
-      testing · 2h ago · dirty                                                                  │                                                               
+      2h ago · dirty                                                                            │                                                               
  5 ○ refactor                                                                                   │                                                               
-      refactor · 2h ago · clean                                                                 │                                                               
+      2h ago · clean                                                                            │                                                               
                                                                                                 │                                                               
                                                                                                 │                                                               
                                                                                                 │                                                               

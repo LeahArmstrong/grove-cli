@@ -1,13 +1,13 @@
 [2m [1m[1mtest-project[m  ·  5 worktrees  ·  on root                                                                        ● root[m [m
 [2m                                                                        │                                               [m
 [2m 1 ❯ [1mroot[m                                                               │                                               [m
-[2m      root · dirty                                                      │                                               [m
-[2m 2 ○ feature-auth                                                       │                                               [m
-[2m      feature-a… · clean                                                │                                               [m
+[2m      2h ago · dirty                                                    │                                               [m
+[2m 2 ○ feature-a…                                                         │                                               [m
+[2m      2h ago · clean                                                    │                                               [m
 [2m 3 ○ fix-bug                                                            │                                               [m
-[2m      fix-bug · clean                                                   │                                               [m
+[2m      2h ago · clean                                                    │                                               [m
 [2m 4 ● testing                                                            │                                               [m
-[2m      testing · dirty                                                   │                                               [m
+[2m      2h ago · dirty                                                    │                                               [m
   ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
   │                                                                                                                  │
   │  [1mQuick Reference[m                                                                                                 │

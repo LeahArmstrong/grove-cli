@@ -578,7 +578,8 @@ func (m *Model) toggleCompactMode() {
 		m.listDelegate = d
 		m.list.SetDelegate(d)
 	} else {
-		m.list.SetDelegate(NewWorktreeDelegateV2())
+		d := ComputeDelegateWidthsV2(m.list.Items(), m.list.Width())
+		m.list.SetDelegate(d)
 	}
 	m.updateLayout()
 	m.updateDetailContent()
@@ -593,21 +594,21 @@ func (m *Model) delegateHeight() int {
 }
 
 // computeColumnWidths scans list items to find max name/branch lengths,
-// then distributes available width proportionally. Only applies to
-// compact mode (V1 delegate); V2 calculates columns internally.
+// then distributes available width proportionally.
 func (m *Model) computeColumnWidths() {
-	if !m.compactMode {
-		return
-	}
-
 	listWidth := m.list.Width()
 	if listWidth <= 0 {
 		return
 	}
 
-	d := ComputeDelegateWidths(m.list.Items(), listWidth)
-	m.listDelegate = d
-	m.list.SetDelegate(d)
+	if m.compactMode {
+		d := ComputeDelegateWidths(m.list.Items(), listWidth)
+		m.listDelegate = d
+		m.list.SetDelegate(d)
+	} else {
+		d := ComputeDelegateWidthsV2(m.list.Items(), listWidth)
+		m.list.SetDelegate(d)
+	}
 }
 
 func (m *Model) updateDetailContent() {
@@ -675,6 +676,10 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case key.Matches(msg, m.keys.Escape):
+		if m.helpFooter.Expanded {
+			m.helpFooter.Toggle()
+			return m, nil
+		}
 		return m, tea.Quit
 
 	case key.Matches(msg, m.keys.Help):
@@ -1360,7 +1365,7 @@ func (m Model) renderDashboard() string {
 	}
 
 	// Help footer: always show compact hints
-	footer := m.helpFooter.RenderCompact(m.activeView, m.width)
+	footer := m.helpFooter.RenderCompact(m.activeView, m.width-4)
 
 	// Composite toast onto the header line (right-aligned) to avoid layout shift
 	if m.toast != nil && m.toast.Current != nil {

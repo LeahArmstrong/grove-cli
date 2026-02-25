@@ -1,15 +1,15 @@
  [1m[1mtest-project[m  ·  5 worktrees  ·  on root                                                                        ● root[m 
                                                                         │                                               
  1 ❯ [1mroot[m                                                               │                                               
-      root · dirty                                                      │                                               
- 2 ○ feature-auth                                                       │                                               
-      feature-a… · clean                                                │                                               
+      2h ago · dirty                                                    │                                               
+ 2 ○ feature-a…                                                         │                                               
+      2h ago · clean                                                    │                                               
  3 ○ fix-bug                                                            │                                               
-      fix-bug · clean                                                   │                                               
+      2h ago · clean                                                    │                                               
  4 ● testing                                                            │                                               
-      testing · dirty                                                   │                                               
+      2h ago · dirty                                                    │                                               
  5 ○ refactor                                                           │                                               
-      refactor · clean                                                  │                                               
+      2h ago · clean                                                    │                                               
                                                                         │                                               
                                                                         │                                               
                                                                         │                                               

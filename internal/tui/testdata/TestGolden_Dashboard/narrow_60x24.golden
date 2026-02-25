@@ -1,7 +1,7 @@
  [1m[1mtest-project[m  ·  5 worktrees  ·  on root            ● root[m 
                                                             
  1 ❯ [1mroot[m                                                   
-      dirty                                                 
+      2h ago · dirty                                        
                                                             
    [38;2;151;151;151m•[m[38;2;60;60;60m•[m[38;2;60;60;60m•[m[38;2;60;60;60m•[m[38;2;60;60;60m•[m                                                    
  ── root ────────────────────────────────────────────────── 
@@ -23,4 +23,4 @@
                                                             
                                                             
                                                             
-  [1m↑↓[m navigate ·   · [1menter[m switch ·   · [1mn[m new ·   · [1md[m delete 
+  [1m↑↓[m navigate ·   · [1menter[m switch ·   · [1mn[m new                
