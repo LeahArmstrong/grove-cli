@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/grove"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
@@ -40,6 +41,8 @@ Examples:
   grove new staging --mirror origin/main  # Create environment worktree tracking origin/main`,
 	Args: cobra.ExactArgs(1),
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		w := cli.NewStdout()
+
 		name := args[0]
 		if name == "" {
 			return fmt.Errorf("worktree name cannot be empty")
@@ -87,7 +90,7 @@ Examples:
 			}
 
 			if !newJSON {
-				fmt.Printf("✓ Created environment worktree '%s' tracking %s\n", name, newMirror)
+				cli.Success(w, "Created environment worktree '%s' tracking %s", name, newMirror)
 			}
 		} else {
 			// Regular worktree - use name as branch name
@@ -97,7 +100,7 @@ Examples:
 			}
 
 			if !newJSON {
-				fmt.Printf("✓ Created worktree '%s'\n", name)
+				cli.Success(w, "Created worktree '%s'", name)
 			}
 		}
 
@@ -138,10 +141,10 @@ Examples:
 			sessionName := worktree.TmuxSessionName(projectName, name)
 			if err := tmux.CreateSession(sessionName, wt.Path); err != nil {
 				if !newJSON {
-					fmt.Printf("⚠ Failed to create tmux session: %v\n", err)
+					cli.Warning(w, "Failed to create tmux session: %v", err)
 				}
 			} else if !newJSON {
-				fmt.Printf("✓ Created tmux session '%s'\n", sessionName)
+				cli.Success(w, "Created tmux session '%s'", sessionName)
 			}
 		}
 
@@ -149,7 +152,7 @@ Examples:
 		hookExecutor, err := hooks.NewExecutor()
 		if err != nil {
 			if !newJSON {
-				fmt.Printf("⚠ Failed to load hooks config: %v\n", err)
+				cli.Warning(w, "Failed to load hooks config: %v", err)
 			}
 		} else if hookExecutor.HasHooksForEvent(hooks.EventPostCreate) {
 			hookCtx := &hooks.ExecutionContext{
@@ -163,12 +166,12 @@ Examples:
 			}
 
 			if !newJSON {
-				fmt.Println("\nRunning post-create hooks...")
+				cli.Step(w, "Running post-create hooks...")
 			}
 
 			if err := hookExecutor.Execute(hooks.EventPostCreate, hookCtx); err != nil {
 				if !newJSON {
-					fmt.Printf("⚠ Hook execution had errors: %v\n", err)
+					cli.Warning(w, "Hook execution had errors: %v", err)
 				}
 			}
 		}
@@ -182,7 +185,7 @@ Examples:
 		}
 		if err := hooks.Fire(hooks.EventPostCreate, globalHookCtx); err != nil {
 			if !newJSON {
-				fmt.Printf("⚠ Post-create plugin hook failed: %v\n", err)
+				cli.Warning(w, "Post-create plugin hook failed: %v", err)
 			}
 		}
 

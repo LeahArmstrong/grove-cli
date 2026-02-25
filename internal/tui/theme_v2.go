@@ -1,127 +1,45 @@
 package tui
 
 import (
-	"image/color"
-	"os"
-	"strconv"
-	"strings"
-
 	lipgloss "charm.land/lipgloss/v2"
+
+	"github.com/LeahArmstrong/grove-cli/internal/theme"
 )
 
-// adaptiveColor picks between a dark and light hex color.
-// In v2 lipgloss, AdaptiveColor no longer exists.
-// We default to dark mode and allow override via GROVE_LIGHT_MODE env var.
-// Falls back to COLORFGBG heuristic if GROVE_LIGHT_MODE is not set.
-// Colors are resolved once at package init time (not re-evaluated on theme changes).
-func adaptiveColor(dark, light string) color.Color {
-	if isLightMode() {
-		return lipgloss.Color(light)
-	}
-	return lipgloss.Color(dark)
-}
+// ColorScheme is re-exported from internal/theme for backward compatibility.
+type ColorScheme = theme.ColorScheme
 
-// isLightMode checks if the terminal is in light mode.
-// Priority: GROVE_LIGHT_MODE env var (explicit) > COLORFGBG heuristic > dark default.
-func isLightMode() bool {
-	if val, ok := os.LookupEnv("GROVE_LIGHT_MODE"); ok {
-		return val != "0" && val != "false" && val != "no"
-	}
-	// COLORFGBG is "fg;bg" — bg >= 8 typically means light background.
-	if colorfgbg, ok := os.LookupEnv("COLORFGBG"); ok {
-		parts := strings.Split(colorfgbg, ";")
-		if len(parts) >= 2 {
-			if bg, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
-				return bg >= 8
-			}
-		}
-	}
-	return false
-}
+// Colors is the global color scheme, delegating to the shared theme package.
+var Colors = theme.Colors
 
-// ColorScheme defines semantic colors for the TUI.
-type ColorScheme struct {
-	// Brand
-	Primary   color.Color
-	Secondary color.Color
-
-	// Status
-	Success color.Color
-	Warning color.Color
-	Danger  color.Color
-	Info    color.Color
-
-	// Surface
-	SurfaceBg     color.Color
-	SurfaceFg     color.Color
-	SurfaceDim    color.Color
-	SurfaceBorder color.Color
-
-	// Selection / Header
-	SelectionBg color.Color
-	HeaderBg    color.Color
-
-	// Text
-	TextNormal color.Color
-	TextBright color.Color
-	TextMuted  color.Color
-}
-
-// Colors is the global color scheme. Initialized respecting NO_COLOR.
-var Colors = NewColorScheme()
-
-// defaultColorScheme returns the full color palette.
-func defaultColorScheme() ColorScheme {
-	return ColorScheme{
-		// Brand — purple/blue inspired by lazygit/charm aesthetics
-		Primary:   adaptiveColor("#A78BFA", "#7C3AED"),
-		Secondary: adaptiveColor("#38BDF8", "#0369A1"),
-
-		// Status — Tailwind-inspired semantic colors (light adjusted for WCAG AA)
-		Success: adaptiveColor("#34D399", "#047857"),
-		Warning: adaptiveColor("#FBBF24", "#92400E"),
-		Danger:  adaptiveColor("#F87171", "#DC2626"),
-		Info:    adaptiveColor("#60A5FA", "#2563EB"),
-
-		// Surface — Catppuccin Mocha (dark) / Slate (light)
-		SurfaceBg:     adaptiveColor("#1E1E2E", "#FFFFFF"),
-		SurfaceFg:     adaptiveColor("#CDD6F4", "#1E293B"),
-		SurfaceDim:    adaptiveColor("#585B70", "#94A3B8"),
-		SurfaceBorder: adaptiveColor("#45475A", "#CBD5E1"),
-
-		// Selection / Header
-		SelectionBg: adaptiveColor("#313244", "#E2E8F0"),
-		HeaderBg:    adaptiveColor("#181825", "#F1F5F9"),
-
-		// Text
-		TextNormal: adaptiveColor("#CDD6F4", "#1E293B"),
-		TextBright: adaptiveColor("#FFFFFF", "#0F172A"),
-		TextMuted:  adaptiveColor("#A6ADC8", "#475569"),
-	}
-}
-
-// noColorScheme returns a ColorScheme with all nil colors for NO_COLOR mode.
-func noColorScheme() ColorScheme {
-	return ColorScheme{}
-}
-
-// NewColorScheme creates a ColorScheme, respecting NO_COLOR, GROVE_NO_COLOR,
-// and GROVE_HIGH_CONTRAST environment variables.
+// NewColorScheme delegates to the shared theme package.
 func NewColorScheme() ColorScheme {
-	if isNoColor() {
-		return noColorScheme()
-	}
-	if isHighContrast() {
-		return highContrastColorScheme()
-	}
-	return defaultColorScheme()
+	return theme.NewColorScheme()
 }
 
-// isNoColor checks if color output should be suppressed.
+// isNoColor delegates to the shared theme package.
 func isNoColor() bool {
-	_, nc := os.LookupEnv("NO_COLOR")
-	_, gnc := os.LookupEnv("GROVE_NO_COLOR")
-	return nc || gnc
+	return theme.IsNoColor()
+}
+
+// defaultColorScheme delegates to theme for backward compatibility with tests.
+func defaultColorScheme() ColorScheme {
+	return theme.DefaultColorScheme()
+}
+
+// noColorScheme delegates to theme for backward compatibility with tests.
+func noColorScheme() ColorScheme {
+	return theme.NoColorScheme()
+}
+
+// highContrastColorScheme delegates to theme for backward compatibility with tests.
+func highContrastColorScheme() ColorScheme {
+	return theme.HighContrastColorScheme()
+}
+
+// hexToRGB delegates to theme for backward compatibility with tests.
+func hexToRGB(hex string) (r, g, b uint8, err error) {
+	return theme.HexToRGB(hex)
 }
 
 // StyleSet holds pre-composed lipgloss styles built from a ColorScheme.
@@ -243,7 +161,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		SelectedItem:  lipgloss.NewStyle().Bold(true).Foreground(cs.TextBright),
 		NormalItem:    lipgloss.NewStyle().Foreground(cs.TextNormal),
 		CurrentItem:   lipgloss.NewStyle().Foreground(cs.Secondary),
-		DimmedItem:    lipgloss.NewStyle().Foreground(adaptiveColor("#7F849C", "#64748B")),
+		DimmedItem:    lipgloss.NewStyle().Foreground(theme.AdaptiveColor("#7F849C", "#64748B")),
 		ListCursor:    lipgloss.NewStyle().Foreground(cs.Info),
 		ListCursorDim: lipgloss.NewStyle(),
 

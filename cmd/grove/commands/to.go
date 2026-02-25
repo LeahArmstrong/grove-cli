@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
@@ -26,6 +27,8 @@ When using shell integration, this will also change your current directory.`,
 	Args: cobra.ExactArgs(1),
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
 		name := args[0]
+		stderr := cli.NewStderr()
+
 		if name == "" {
 			return fmt.Errorf("worktree name cannot be empty")
 		}
@@ -70,7 +73,7 @@ When using shell integration, this will also change your current directory.`,
 			MainPath:         ctx.ProjectRoot,
 		}
 		if err := hooks.Fire(hooks.EventPreSwitch, hookCtx); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: pre-switch hooks failed: %v\n", err)
+			cli.Warning(stderr, "pre-switch hooks failed: %v", err)
 		}
 
 		// Store current session as last if inside tmux
@@ -103,7 +106,7 @@ When using shell integration, this will also change your current directory.`,
 					return fmt.Errorf("failed to create session: %w", err)
 				}
 				if !toJSON {
-					fmt.Printf("✓ Created tmux session '%s'\n", sessionName)
+					cli.Success(stderr, "Created tmux session '%s'", sessionName)
 				}
 			}
 
@@ -114,8 +117,8 @@ When using shell integration, this will also change your current directory.`,
 				}
 				tmuxSwitched = true
 			} else if tmuxMode == "manual" && !toJSON {
-				fmt.Printf("✓ Tmux session '%s' ready\n", sessionName)
-				fmt.Printf("Run: tmux attach -t %s\n", sessionName)
+				cli.Success(stderr, "Tmux session '%s' ready", sessionName)
+				cli.Faint(stderr, "Run: tmux attach -t %s", sessionName)
 			}
 			// auto mode outside tmux: handled below via shell directive or direct attach
 		}
@@ -142,7 +145,7 @@ When using shell integration, this will also change your current directory.`,
 		// Fire post-switch hooks before shell directives / tmux attach
 		// so docker services start before the user arrives in the new session
 		if err := hooks.Fire(hooks.EventPostSwitch, hookCtx); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: post-switch hooks failed: %v\n", err)
+			cli.Warning(stderr, "post-switch hooks failed: %v", err)
 		}
 
 		// Skip cd directive when tmux switch already moved the user to the
@@ -151,18 +154,20 @@ When using shell integration, this will also change your current directory.`,
 		if !tmuxSwitched {
 			if hasShellIntegration {
 				// Shell wrapper will parse this and execute cd
-				fmt.Printf("cd:%s\n", targetTree.Path)
+				cli.Directive("cd", targetTree.Path)
 				// In auto mode outside tmux, emit tmux-attach directive for shell wrapper
 				if tmuxMode == "auto" && sessionName != "" {
-					fmt.Printf("tmux-attach:%s\n", sessionName)
+					cli.Directive("tmux-attach", sessionName)
 				}
 			} else {
-				fmt.Fprintf(os.Stderr, "\nNote: Directory switching requires shell integration.\n")
-				fmt.Fprintf(os.Stderr, "Add this to your shell config (~/.zshrc or ~/.bashrc):\n\n")
-				fmt.Fprintf(os.Stderr, "  eval \"$(grove install zsh)\"   # for zsh\n")
-				fmt.Fprintf(os.Stderr, "  eval \"$(grove install bash)\"  # for bash\n\n")
-				fmt.Fprintf(os.Stderr, "To change directory manually:\n")
-				fmt.Fprintf(os.Stderr, "  cd %s\n", targetTree.Path)
+				cli.Faint(stderr, "Note: Directory switching requires shell integration.")
+				cli.Faint(stderr, "Add this to your shell config (~/.zshrc or ~/.bashrc):")
+				_, _ = fmt.Fprintf(stderr, "\n")
+				cli.Faint(stderr, "  eval \"$(grove install zsh)\"   # for zsh")
+				cli.Faint(stderr, "  eval \"$(grove install bash)\"  # for bash")
+				_, _ = fmt.Fprintf(stderr, "\n")
+				cli.Faint(stderr, "To change directory manually:")
+				cli.Faint(stderr, "  cd %s", targetTree.Path)
 				// In auto mode outside tmux without shell wrapper, attach directly
 				if tmuxMode == "auto" && sessionName != "" {
 					if err := tmux.AttachSession(sessionName); err != nil {

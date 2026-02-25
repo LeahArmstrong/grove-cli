@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
@@ -38,6 +39,9 @@ Examples:
   grove up --isolated      # Start an independent stack (allocates a slot)
   w up                     # Using alias`,
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		w := cli.NewStdout()
+		stderr := cli.NewStderr()
+
 		// Get current directory (docker-compose works in cwd)
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -58,13 +62,22 @@ Examples:
 		}
 
 		// Start containers
-		if err := plugin.Up(cwd, upDetach); err != nil {
-			return fmt.Errorf("failed to start containers: %w", err)
+		if upDetach {
+			if err := cli.Spin("Starting containers...", func() error {
+				return plugin.Up(cwd, true)
+			}); err != nil {
+				return fmt.Errorf("failed to start containers: %w", err)
+			}
+			if !upIsolated {
+				cli.Success(w, "Containers started in detached mode")
+			}
+		} else {
+			cli.Header(stderr, "Starting containers")
+			if err := plugin.Up(cwd, false); err != nil {
+				return fmt.Errorf("failed to start containers: %w", err)
+			}
 		}
 
-		if upDetach && !upIsolated {
-			fmt.Println("Containers started in detached mode")
-		}
 		return nil
 	}),
 }

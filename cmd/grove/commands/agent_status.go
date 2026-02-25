@@ -3,10 +3,10 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
@@ -69,8 +69,10 @@ Examples:
 			return nil
 		}
 
+		w := cli.NewStdout()
+
 		if len(slots) == 0 {
-			fmt.Println("No active isolated stacks")
+			cli.Info(w, "No active isolated stacks")
 			return nil
 		}
 
@@ -81,17 +83,16 @@ Examples:
 			maxSlots = ctx.Config.Plugins.Docker.External.Agent.MaxSlots
 		}
 
-		fmt.Printf("Active isolated stacks (%d/%d slots)\n", len(slots), maxSlots)
-		fmt.Println(strings.Repeat("━", 50))
+		cli.Header(w, "Active isolated stacks (%d/%d slots)", len(slots), maxSlots)
 
 		for _, s := range slots {
 			project := docker.AgentComposeProjectName(ctx.Config, s.Slot)
 			url := docker.AgentURL(ctx.Config, s.Slot)
 
-			fmt.Printf("  Slot %d: %s\n", s.Slot, s.Worktree)
-			fmt.Printf("          Project: %s\n", project)
+			cli.Bold(w, "  Slot %d: %s", s.Slot, s.Worktree)
+			cli.Label(w, "          Project:", project)
 			if url != "" {
-				fmt.Printf("          URL:     %s\n", url)
+				cli.Label(w, "          URL:    ", url)
 			}
 		}
 
