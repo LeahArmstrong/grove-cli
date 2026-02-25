@@ -232,7 +232,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		SelectionRow: lipgloss.NewStyle().Background(cs.SelectionBg),
 
 		// Layout
-		Header: lipgloss.NewStyle().Bold(true).Foreground(cs.Primary),
+		Header: lipgloss.NewStyle().Bold(true).Foreground(cs.Info),
 		Footer: lipgloss.NewStyle().Foreground(cs.TextMuted),
 		HeaderBar: lipgloss.NewStyle().
 			Background(cs.HeaderBg).
@@ -244,7 +244,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		NormalItem:    lipgloss.NewStyle().Foreground(cs.TextNormal),
 		CurrentItem:   lipgloss.NewStyle().Foreground(cs.Secondary),
 		DimmedItem:    lipgloss.NewStyle().Foreground(adaptiveColor("#7F849C", "#64748B")),
-		ListCursor:    lipgloss.NewStyle().Foreground(cs.Primary),
+		ListCursor:    lipgloss.NewStyle().Foreground(cs.Info),
 		ListCursorDim: lipgloss.NewStyle(),
 
 		// Status badges

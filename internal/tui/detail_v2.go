@@ -2,7 +2,9 @@ package tui
 
 import (
 	"fmt"
+	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -109,7 +111,13 @@ func renderMetadataGrid(item *WorktreeItem, width int) string {
 	// Plugin statuses (containers, etc.)
 	for _, s := range item.PluginStatuses {
 		if s.Detail != "" {
-			rows = append(rows, label("Docker")+renderContainerValue(&s))
+			mainDetail, pointedDetail := splitContainerDetail(s.Detail)
+			entry := s
+			entry.Detail = mainDetail
+			rows = append(rows, label("Docker")+renderContainerValue(&entry))
+			if pointedDetail != "" {
+				rows = append(rows, label("")+Styles.DetailDim.Render(pointedDetail))
+			}
 		}
 	}
 
@@ -161,6 +169,15 @@ func renderContainerValue(s *plugins.StatusEntry) string {
 	}
 }
 
+// splitContainerDetail splits a container detail string on ", pointed"
+// into a main status line and a secondary "pointed" line.
+func splitContainerDetail(detail string) (main, pointed string) {
+	if idx := strings.Index(detail, ", pointed"); idx >= 0 {
+		return detail[:idx], detail[idx+2:]
+	}
+	return detail, ""
+}
+
 // renderTmuxValue returns styled tmux session indicator.
 func renderTmuxValue(item *WorktreeItem) string {
 	switch item.TmuxStatus {
@@ -175,7 +192,48 @@ func renderTmuxValue(item *WorktreeItem) string {
 
 const maxChangesShown = 15
 
-// renderChangesSection renders the changed files list with type indicators.
+// fileEntry holds a parsed git status entry for tree rendering.
+type fileEntry struct {
+	prefix string // git status prefix (e.g. " M", "??", " D")
+	dir    string // directory path (empty for root-level files)
+	base   string // filename
+}
+
+// buildFileTree parses git status lines into directory-grouped entries.
+func buildFileTree(files []string) []fileEntry {
+	var entries []fileEntry
+	for _, f := range files {
+		f = strings.TrimSpace(f)
+		if len(f) < 3 {
+			continue
+		}
+		prefix := f[:2]
+		filePath := strings.TrimSpace(f[2:])
+		dir := path.Dir(filePath)
+		base := path.Base(filePath)
+		if dir == "." {
+			dir = ""
+		}
+		entries = append(entries, fileEntry{prefix: prefix, dir: dir, base: base})
+	}
+	// Stable sort by directory to group files together
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].dir == entries[j].dir {
+			return entries[i].base < entries[j].base
+		}
+		// Root-level files sort first
+		if entries[i].dir == "" {
+			return true
+		}
+		if entries[j].dir == "" {
+			return false
+		}
+		return entries[i].dir < entries[j].dir
+	})
+	return entries
+}
+
+// renderChangesSection renders the changed files list grouped by directory.
 func renderChangesSection(files []string, width int) string {
 	header := Styles.DetailLabel.Render("── Changes ") +
 		Styles.DetailDim.Render(strings.Repeat("─", max(0, width-12)))
@@ -183,35 +241,46 @@ func renderChangesSection(files []string, width int) string {
 	var lines []string
 	lines = append(lines, header)
 
+	entries := buildFileTree(files)
+
 	overflow := 0
-	if len(files) > maxChangesShown {
-		overflow = len(files) - maxChangesShown
-		files = files[:maxChangesShown]
+	if len(entries) > maxChangesShown {
+		overflow = len(entries) - maxChangesShown
+		entries = entries[:maxChangesShown]
 	}
 
-	for _, f := range files {
-		f = strings.TrimSpace(f)
-		if len(f) < 3 {
-			continue
+	lastDir := "\x00" // sentinel so first dir always triggers header
+	for _, e := range entries {
+		if e.dir != lastDir {
+			lastDir = e.dir
+			if e.dir != "" {
+				dirDisplay := truncate(e.dir+"/", width-2)
+				lines = append(lines, Styles.DetailDim.Render(dirDisplay))
+			}
 		}
-		prefix := f[:2]
-		file := strings.TrimSpace(f[2:])
-		file = truncate(file, width-4)
+
+		indent := " "
+		nameWidth := width - 4
+		if e.dir != "" {
+			indent = "   "
+			nameWidth = width - 6
+		}
+		baseName := truncate(e.base, nameWidth)
 
 		var styled string
 		switch {
-		case strings.Contains(prefix, "?"):
-			styled = Styles.DetailFileAdd.Render("+ " + file)
-		case strings.Contains(prefix, "D"):
-			styled = Styles.DetailFileDel.Render("- " + file)
+		case strings.Contains(e.prefix, "?"):
+			styled = Styles.DetailFileAdd.Render("+ " + baseName)
+		case strings.Contains(e.prefix, "D"):
+			styled = Styles.DetailFileDel.Render("- " + baseName)
 		default:
-			styled = Styles.DetailFileMod.Render("M " + file)
+			styled = Styles.DetailFileMod.Render("M " + baseName)
 		}
-		lines = append(lines, " "+styled)
+		lines = append(lines, indent+styled)
 	}
 
 	if overflow > 0 {
-		lines = append(lines, " "+Styles.DetailDim.Render(fmt.Sprintf("… and %d more", overflow)))
+		lines = append(lines, " "+Styles.StatusInfo.Render(fmt.Sprintf("… and %d more files", overflow)))
 	}
 
 	return strings.Join(lines, "\n")

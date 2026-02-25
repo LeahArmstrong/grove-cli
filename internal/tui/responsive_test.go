@@ -15,9 +15,9 @@ func TestComputeDelegateWidthsV2_NarrowTerminal(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		width     int
-		wantSmall bool // expect branch hidden at very narrow
+		name          string
+		width         int
+		wantDirHidden bool // expect directory (NameWidth) hidden at very narrow
 	}{
 		{"very narrow 40 chars", 40, true},
 		{"narrow 55 chars", 55, true},
@@ -29,11 +29,16 @@ func TestComputeDelegateWidthsV2_NarrowTerminal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := ComputeDelegateWidthsV2(items, tt.width)
-			if tt.wantSmall && d.BranchWidth > 0 {
-				t.Errorf("width=%d: expected BranchWidth=0 (hidden), got %d", tt.width, d.BranchWidth)
-			}
-			if !tt.wantSmall && d.BranchWidth == 0 {
+			// Branch is always shown (primary identifier)
+			if d.BranchWidth == 0 {
 				t.Errorf("width=%d: expected BranchWidth > 0, got 0", tt.width)
+			}
+			// Directory is hidden at narrow widths
+			if tt.wantDirHidden && d.NameWidth > 0 {
+				t.Errorf("width=%d: expected NameWidth=0 (hidden), got %d", tt.width, d.NameWidth)
+			}
+			if !tt.wantDirHidden && d.NameWidth == 0 {
+				t.Errorf("width=%d: expected NameWidth > 0, got 0", tt.width)
 			}
 		})
 	}
@@ -134,17 +139,20 @@ func TestRenderDetailV2_NarrowNoOverflow(t *testing.T) {
 	}
 }
 
-func TestComputeDelegateWidthsV2_HidesBranchNarrow(t *testing.T) {
+func TestComputeDelegateWidthsV2_HidesDirectoryNarrow(t *testing.T) {
 	items := []list.Item{
 		WorktreeItem{ShortName: "feature", Branch: "feature/test"},
 	}
 	d := ComputeDelegateWidthsV2(items, 40)
-	if d.BranchWidth > 0 {
-		t.Errorf("at width=40, expected BranchWidth=0 (hidden), got %d", d.BranchWidth)
+	if d.NameWidth > 0 {
+		t.Errorf("at width=40, expected NameWidth=0 (hidden), got %d", d.NameWidth)
+	}
+	if d.BranchWidth == 0 {
+		t.Errorf("at width=40, expected BranchWidth > 0 (always shown), got 0")
 	}
 }
 
-func TestComputeDelegateWidthsV2_ShowsBranchAtWidth60(t *testing.T) {
+func TestComputeDelegateWidthsV2_ShowsBothAtWidth60(t *testing.T) {
 	items := []list.Item{
 		WorktreeItem{ShortName: "feature", Branch: "feature/test"},
 	}

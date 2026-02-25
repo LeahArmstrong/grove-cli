@@ -523,7 +523,7 @@ func (m *Model) updateLayout() {
 	}
 
 	headerHeight := 1 // status bar
-	footerHeight := 1 // help
+	footerHeight := m.helpFooter.CompactHeight(m.activeView, m.width-4)
 	available := m.height - headerHeight - footerHeight
 
 	contentWidth := m.width - 2 // body padding (1 char each side)
@@ -1321,12 +1321,20 @@ func (m Model) renderDashboard() string {
 		ProjectName:   m.projectName,
 		WorktreeCount: len(m.list.Items()),
 	}
-	// Find current worktree info for header
+	// Find current worktree info and container target for header
 	for _, li := range m.list.Items() {
-		if item, ok := li.(WorktreeItem); ok && item.IsCurrent {
+		item, ok := li.(WorktreeItem)
+		if !ok {
+			continue
+		}
+		if item.IsCurrent {
 			m.header.CurrentBranch = item.Branch
 			m.header.CurrentName = item.ShortName
-			break
+		}
+		for _, ps := range item.PluginStatuses {
+			if strings.Contains(ps.Detail, "pointed") {
+				m.header.ContainerTarget = item.ShortName
+			}
 		}
 	}
 	statusBar := m.header.View(m.width)

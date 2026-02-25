@@ -32,32 +32,33 @@ func ComputeDelegateWidthsV2(items []list.Item, width int) WorktreeDelegateV2 {
 	d := WorktreeDelegateV2{}
 
 	// Scale caps with available width so ultrawide terminals use the space
-	nameCap := 40
-	branchCap := 30
+	// Branch is the primary identifier (larger cap), directory is secondary
+	branchCap := 40
+	nameCap := 30
 	if width >= 120 {
-		nameCap = 55
-		branchCap = 40
+		branchCap = 55
+		nameCap = 40
 	} else if width >= 90 {
-		nameCap = 45
-		branchCap = 35
+		branchCap = 45
+		nameCap = 35
 	}
 
-	// Name: use actual max, capped and floored
-	d.NameWidth = maxName
-	if d.NameWidth > nameCap {
-		d.NameWidth = nameCap
+	// Branch: use actual max, capped and floored (primary identifier)
+	d.BranchWidth = maxBranch
+	if d.BranchWidth > branchCap {
+		d.BranchWidth = branchCap
 	}
-	if d.NameWidth < 10 {
-		d.NameWidth = 10
+	if d.BranchWidth < 10 {
+		d.BranchWidth = 10
 	}
 
-	// Branch: use actual max, capped; hidden at narrow widths
+	// Name (directory): use actual max, capped; hidden at narrow widths
 	if width < 60 {
-		d.BranchWidth = 0
+		d.NameWidth = 0
 	} else {
-		d.BranchWidth = maxBranch
-		if d.BranchWidth > branchCap {
-			d.BranchWidth = branchCap
+		d.NameWidth = maxName
+		if d.NameWidth > nameCap {
+			d.NameWidth = nameCap
 		}
 	}
 
@@ -226,13 +227,13 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	dimStyle := withBg(Styles.DimmedItem)
 	// Very dim style for dividers, rules, numbers — structural elements
 	divStyle := withBg(lipgloss.NewStyle().Foreground(Colors.SurfaceDim))
-	// Branch gets its own color to stand out
-	branchStyle := withBg(Styles.StatusInfo)
+	// Branch uses primary purple to stand out from the blue tones
+	branchStyle := withBg(lipgloss.NewStyle().Foreground(Colors.Primary))
 
 	sep := divStyle.Render(" │ ")
 	const sepLen = 3 // visible width of " │ "
 
-	// === LINE 1: num indicator name │ branch │ indicators ──── age ===
+	// === LINE 1: num indicator branch │ directory │ indicators ──── age ===
 
 	// Number prefix (2 chars: "N " or "  ")
 	var numPrefix string
@@ -247,7 +248,12 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	indicator := worktreeIndicatorBg(item, selected) + bgSpace(1)
 	const indicatorLen = 2
 
-	// Name (variable width, truncated to NameWidth)
+	// Branch (primary identifier, rendered first without separator)
+	branchText := truncate(item.Branch, d.BranchWidth)
+	branch := branchStyle.Render(branchText)
+	branchLen := len([]rune(branchText))
+
+	// Directory name (secondary, with separator; hidden at narrow widths)
 	nameStyle := withBg(Styles.NormalItem)
 	if selected {
 		nameStyle = withBg(Styles.SelectedItem)
@@ -258,17 +264,12 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 			nameStyle = nameStyle.Bold(true)
 		}
 	}
-	nameText := truncate(item.ShortName, d.NameWidth)
-	name := nameStyle.Render(nameText)
-	nameLen := len([]rune(nameText))
-
-	// Branch (variable width, truncated to BranchWidth)
-	var branchPart string
-	branchLen := 0
-	if d.BranchWidth > 0 {
-		branchText := truncate(item.Branch, d.BranchWidth)
-		branchPart = sep + branchStyle.Render(branchText)
-		branchLen = sepLen + len([]rune(branchText))
+	var namePart string
+	nameLen := 0
+	if d.NameWidth > 0 {
+		nameText := truncate(item.ShortName, d.NameWidth)
+		namePart = sep + nameStyle.Render(nameText)
+		nameLen = sepLen + len([]rune(nameText))
 	}
 
 	// Compact indicators (↑N ↓N ~N)
@@ -280,9 +281,8 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 		indPart = sep + indicators
 		indPartLen = sepLen + indVisLen
 	} else {
-		// Show separator even when no indicators, for rule continuity
-		indPart = bgSpace(1) + divStyle.Render("│") + bgSpace(1)
-		indPartLen = sepLen
+		indPart = ""
+		indPartLen = 0
 	}
 
 	// Age (right-aligned after rule fill)
@@ -294,7 +294,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	}
 
 	// Rule fill: bridges gap between indicators and age
-	usedLen := numLen + indicatorLen + nameLen + branchLen + indPartLen
+	usedLen := numLen + indicatorLen + branchLen + nameLen + indPartLen
 	ruleSpace := width - usedLen - ageLen
 	if ageLen > 0 {
 		ruleSpace -= 2 // spaces around rule/before age
@@ -315,7 +315,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 		agePart = mutedStyle.Render(age)
 	}
 
-	line1 := numPrefix + indicator + name + branchPart + indPart + rulePart + agePart
+	line1 := numPrefix + indicator + branch + namePart + indPart + rulePart + agePart
 
 	// === LINE 2: commit message (left) + badges (right-aligned) ===
 	const line2Pad = 6 // indent to align under name (num:2 + indicator:2 + 2 spaces)
