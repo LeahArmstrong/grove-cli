@@ -95,19 +95,24 @@ func withCreateStep(step CreateStep) testOpt {
 	return func(m *Model) {
 		m.activeView = ViewCreate
 		m.createState = &CreateState{
-			Step:        step,
-			Branches:    []string{"main", "develop", "feature/auth", "fix/login-bug", "release/v2"},
-			ProjectName: m.projectName,
+			Step:              step,
+			Branches:          []string{"main", "develop", "feature/auth", "fix/login-bug", "release/v2"},
+			ProjectName:       m.projectName,
+			BranchFilterInput: newBranchFilterInput(),
 		}
 		switch step {
 		case CreateStepName:
 			m.createState.BaseBranch = "feature/auth"
 			m.createState.NameSuggestion = "auth"
+			m.createState.NameInput = newNameInput("auth")
 		case CreateStepBranchAction:
 			m.createState.BaseBranch = "feature/auth"
 		case CreateStepConfirm:
 			m.createState.BaseBranch = "feature/auth"
 			m.createState.Name = "auth-work"
+			ni := newNameInput("")
+			ni.SetValue("auth-work")
+			m.createState.NameInput = ni
 		}
 	}
 }
@@ -142,7 +147,9 @@ func withBulkOverlay(n int) testOpt {
 func withPRData() testOpt {
 	return func(m *Model) {
 		m.activeView = ViewPRs
+		fi := newPRFilterInput()
 		m.prState = &PRViewState{
+			FilterInput: fi,
 			PRs: []*tracker.PullRequest{
 				{Number: 42, Title: "Add user authentication flow", Author: "alice", Branch: "feature/auth", BaseBranch: "main", CommitCount: 3, Additions: 245, Deletions: 12},
 				{Number: 38, Title: "Fix login redirect loop", Author: "bob", Branch: "fix/login", BaseBranch: "main", IsDraft: true, CommitCount: 1, Additions: 8, Deletions: 3},
@@ -159,7 +166,9 @@ func withPRData() testOpt {
 func withIssueData() testOpt {
 	return func(m *Model) {
 		m.activeView = ViewIssues
+		ifi := newIssueFilterInput()
 		m.issueState = &IssueViewState{
+			FilterInput: ifi,
 			Issues: []*tracker.Issue{
 				{Number: 101, Title: "Login page crashes on mobile", Author: "alice", Labels: []string{"bug", "high-priority"}, CreatedAt: time.Now().Add(-48 * time.Hour)},
 				{Number: 95, Title: "Add dark mode support", Author: "bob", Labels: []string{"enhancement"}, CreatedAt: time.Now().Add(-7 * 24 * time.Hour)},

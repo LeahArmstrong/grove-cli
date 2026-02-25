@@ -141,7 +141,7 @@ func renderListHeader(d WorktreeDelegate, width int) string {
 		sepWidth = 0
 	}
 	sep := dim.Render(strings.Repeat("─", sepWidth))
-	return line + "\n" + sep
+	return lipgloss.JoinVertical(lipgloss.Left, line, sep)
 }
 
 // ComputeDelegateWidths computes content-adaptive column widths from a slice

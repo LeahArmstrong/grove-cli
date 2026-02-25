@@ -57,15 +57,7 @@ func renderBulk(s *BulkState, width int) string {
 	fmt.Fprintf(&b, "Select merged worktrees to delete (%d/%d selected)\n\n",
 		s.SelectedCount(), len(s.Items))
 
-	maxShow := 12
-	start := 0
-	if s.Cursor >= maxShow {
-		start = s.Cursor - maxShow + 1
-	}
-	end := start + maxShow
-	if end > len(s.Items) {
-		end = len(s.Items)
-	}
+	start, end := scrollWindow(len(s.Items), s.Cursor, 12)
 
 	for i := start; i < end; i++ {
 		item := s.Items[i]

@@ -37,6 +37,9 @@ type KeyMap struct {
 	// Navigation
 	ShiftTab key.Binding
 
+	// View mode
+	ViewMode key.Binding
+
 	// Fork/Sync/Config
 	Fork   key.Binding
 	Sync   key.Binding
@@ -146,6 +149,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("a", "all merged"),
 		),
 
+		ViewMode: key.NewBinding(
+			key.WithKeys("v"),
+			key.WithHelp("v", "compact"),
+		),
 		Fork: key.NewBinding(
 			key.WithKeys("f"),
 			key.WithHelp("f", "fork"),

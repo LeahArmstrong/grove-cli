@@ -47,7 +47,8 @@ func TestNarrowLayoutBreakpoints(t *testing.T) {
 		{"narrow", 60, false, true},
 		{"medium stacked", 80, false, false},
 		{"medium stacked 100", 100, false, false},
-		{"wide side-by-side", 130, true, false},
+		{"wide side-by-side", 110, true, false},
+		{"wide side-by-side 130", 130, true, false},
 	}
 
 	for _, tt := range tests {

@@ -40,6 +40,7 @@ func (h *HelpFooter) CompactHints(view ActiveView) []Hint {
 			{"s", "sync"},
 			{"c", "config"},
 			{"o", "sort"},
+			{"v", "compact"},
 			{"/", "filter"},
 			{"p", "PRs"},
 			{"i", "issues"},
@@ -157,6 +158,7 @@ func (h *HelpFooter) RenderExpanded(width int) string {
 			items: []Hint{
 				{"1-9", "quick-switch"},
 				{"/", "filter"},
+				{"v", "compact/expanded"},
 				{"?", "toggle help"},
 				{"q", "quit"},
 			},
