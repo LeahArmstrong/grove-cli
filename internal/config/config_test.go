@@ -990,6 +990,101 @@ func TestMergeConfigsPreservesAgent(t *testing.T) {
 	}
 }
 
+func TestMergeConfigsProtectionUnion(t *testing.T) {
+	tests := []struct {
+		name          string
+		baseProtected []string
+		baseImmutable []string
+		overProtected []string
+		overImmutable []string
+		wantProtected []string
+		wantImmutable []string
+	}{
+		{
+			name:          "global and project union",
+			baseProtected: []string{"main"},
+			overProtected: []string{"staging"},
+			wantProtected: []string{"main", "staging"},
+		},
+		{
+			name:          "deduplication",
+			baseProtected: []string{"main"},
+			overProtected: []string{"main", "staging"},
+			wantProtected: []string{"main", "staging"},
+		},
+		{
+			name:          "empty override preserves base",
+			baseProtected: []string{"main"},
+			overProtected: []string{},
+			wantProtected: []string{"main"},
+		},
+		{
+			name:          "empty base with override",
+			baseProtected: []string{},
+			overProtected: []string{"staging"},
+			wantProtected: []string{"staging"},
+		},
+		{
+			name:          "immutable union",
+			baseImmutable: []string{"production"},
+			overImmutable: []string{"staging"},
+			wantImmutable: []string{"production", "staging"},
+		},
+		{
+			name:          "both protected and immutable merge",
+			baseProtected: []string{"main"},
+			baseImmutable: []string{"production"},
+			overProtected: []string{"develop"},
+			overImmutable: []string{"staging"},
+			wantProtected: []string{"main", "develop"},
+			wantImmutable: []string{"production", "staging"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := &Config{
+				Protection: ProtectionConfig{
+					Protected: tt.baseProtected,
+					Immutable: tt.baseImmutable,
+				},
+			}
+			override := &Config{
+				Protection: ProtectionConfig{
+					Protected: tt.overProtected,
+					Immutable: tt.overImmutable,
+				},
+			}
+
+			result := mergeConfigs(base, override)
+
+			if tt.wantProtected != nil {
+				if len(result.Protection.Protected) != len(tt.wantProtected) {
+					t.Errorf("Protected: got %v, want %v", result.Protection.Protected, tt.wantProtected)
+				} else {
+					for i, v := range tt.wantProtected {
+						if result.Protection.Protected[i] != v {
+							t.Errorf("Protected[%d]: got %q, want %q", i, result.Protection.Protected[i], v)
+						}
+					}
+				}
+			}
+
+			if tt.wantImmutable != nil {
+				if len(result.Protection.Immutable) != len(tt.wantImmutable) {
+					t.Errorf("Immutable: got %v, want %v", result.Protection.Immutable, tt.wantImmutable)
+				} else {
+					for i, v := range tt.wantImmutable {
+						if result.Protection.Immutable[i] != v {
+							t.Errorf("Immutable[%d]: got %q, want %q", i, result.Protection.Immutable[i], v)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestIsExternalDockerMode(t *testing.T) {
 	cfg := &Config{}
 	if cfg.IsExternalDockerMode() {
