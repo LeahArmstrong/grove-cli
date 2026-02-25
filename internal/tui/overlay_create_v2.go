@@ -92,15 +92,16 @@ func renderCreateBranchSelectorV2(s *CreateState, width int) string {
 	b.WriteString(indentBlock(stepper.View(innerWidth), indent) + "\n\n")
 
 	// Filter input
-	if s.BranchFilter != "" {
-		b.WriteString(indent + fmt.Sprintf("Filter: %s█\n\n", s.BranchFilter))
+	filter := s.BranchFilterInput.Value()
+	if filter != "" {
+		b.WriteString(indent + s.BranchFilterInput.View() + "\n\n")
 	} else {
 		b.WriteString(indent + "Select a branch or type to create new\n\n")
 	}
 
 	// Build visible items
-	filtered := filteredBranches(s.Branches, s.BranchFilter)
-	showCreateNew := s.BranchFilter != "" && !exactBranchMatch(s.Branches, s.BranchFilter)
+	filtered := filteredBranches(s.Branches, filter)
+	showCreateNew := filter != "" && !exactBranchMatch(s.Branches, filter)
 	totalItems := len(filtered)
 	if showCreateNew {
 		totalItems++
@@ -109,15 +110,7 @@ func renderCreateBranchSelectorV2(s *CreateState, width int) string {
 	if totalItems == 0 {
 		b.WriteString(indent + Styles.DetailDim.Render("(no branches found)") + "\n")
 	} else {
-		maxShow := 10
-		start := 0
-		if s.BranchCursor >= maxShow {
-			start = s.BranchCursor - maxShow + 1
-		}
-		end := start + maxShow
-		if end > totalItems {
-			end = totalItems
-		}
+		start, end := scrollWindow(totalItems, s.BranchCursor, 10)
 		for i := start; i < end; i++ {
 			cursor := "  "
 			if i == s.BranchCursor {
@@ -126,7 +119,7 @@ func renderCreateBranchSelectorV2(s *CreateState, width int) string {
 			if i < len(filtered) {
 				b.WriteString(indent + cursor + filtered[i] + "\n")
 			} else {
-				b.WriteString(indent + cursor + Styles.DetailValue.Render("Create new branch: \""+s.BranchFilter+"\"") + "\n")
+				b.WriteString(indent + cursor + Styles.DetailValue.Render("Create new branch: \""+filter+"\"") + "\n")
 			}
 		}
 		if end < totalItems {
@@ -157,14 +150,10 @@ func renderCreateNameV2(s *CreateState, width int) string {
 	// Context summary from previous steps
 	b.WriteString(indentBlock(renderContextSummary(s, innerWidth), indent) + "\n\n")
 
-	// Input with placeholder
-	if s.Name == "" && s.NameSuggestion != "" {
-		b.WriteString(indent + "Name: " + Styles.DetailDim.Render(s.NameSuggestion) + "\n")
-	} else {
-		b.WriteString(indent + fmt.Sprintf("Name: %s█\n", s.Name))
-	}
+	// Input with textinput component
+	b.WriteString(indent + s.NameInput.View() + "\n")
 
-	effectiveName := s.Name
+	effectiveName := s.NameInput.Value()
 	if effectiveName == "" {
 		effectiveName = s.NameSuggestion
 	}

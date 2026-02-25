@@ -19,7 +19,7 @@ func newTestModel(opts ...testOpt) Model {
 
 	s := GroveSpinner()
 
-	delegate := NewWorktreeDelegate()
+	delegate := NewWorktreeDelegateV2()
 	l := list.New(nil, delegate, 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
@@ -151,6 +151,21 @@ func enterCreateManual(m Model) Model {
 	m = sendKey(m, "n")
 	if m.createState != nil {
 		m.createState.Branches = []string{"main", "develop", "feature/auth"}
+		// Focus the branch filter input (sendKey discards the Focus cmd)
+		m.createState.BranchFilterInput.Focus()
+	}
+	return m
+}
+
+// enterNameStep transitions the create wizard to the name step with a properly
+// initialized NameInput textinput.
+func enterNameStep(m Model) Model {
+	if m.createState != nil {
+		ni := newNameInput("")
+		m.createState.NameInput = ni
+		m.createState.Step = CreateStepName
+		// Focus the input synchronously for tests (ignore the cmd)
+		m.createState.NameInput.Focus()
 	}
 	return m
 }

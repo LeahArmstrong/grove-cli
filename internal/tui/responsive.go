@@ -15,7 +15,7 @@ const (
 // LayoutBreakpoint returns the Layout tier for a given terminal width.
 func LayoutBreakpoint(width int) Layout {
 	switch {
-	case width > 120:
+	case width > 100:
 		return LayoutWide
 	case width >= 80:
 		return LayoutMedium

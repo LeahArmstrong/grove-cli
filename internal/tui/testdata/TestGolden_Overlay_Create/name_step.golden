@@ -11,7 +11,7 @@
                │    │ Branch:   feature/auth (existing)  │      │
                │    ╰────────────────────────────────────╯      │
                │                                                │
-               │    Name: auth                                  │
+               │    [37mName: [m[38;5;240ma[m                                     │
                │    → test-project-auth                         │
                │                                                │
                │    ✓ valid name                                │

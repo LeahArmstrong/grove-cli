@@ -37,6 +37,7 @@ type TUIConfig struct {
 	SkipBranchNotice       *bool  `toml:"skip_branch_notice"`        // Don't show "branch exists" notice
 	DefaultBranchAction    string `toml:"default_branch_action"`     // "split" or "fork" — used when notice is skipped
 	WorktreeNameFromBranch string `toml:"worktree_name_from_branch"` // "last_segment" (default) — how to derive name from branch
+	CompactList            *bool  `toml:"compact_list"`              // Use single-line list items (V1 delegate)
 }
 
 // ProtectionConfig controls worktree protection settings
@@ -252,6 +253,9 @@ func mergeConfigs(base, override *Config) *Config {
 	}
 	if override.TUI.WorktreeNameFromBranch != "" {
 		result.TUI.WorktreeNameFromBranch = override.TUI.WorktreeNameFromBranch
+	}
+	if override.TUI.CompactList != nil {
+		result.TUI.CompactList = override.TUI.CompactList
 	}
 
 	// Merge protection config - union semantics (global protections always apply)

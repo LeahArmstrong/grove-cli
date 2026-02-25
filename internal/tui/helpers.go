@@ -111,6 +111,24 @@ func isPrintableText(s string) bool {
 	return true
 }
 
+// scrollWindow computes the visible start/end indices for a cursor-following
+// scroll window. Given a total item count, the current cursor position, and the
+// max number of items to display, it returns (start, end) such that the cursor
+// is always visible within the window.
+func scrollWindow(total, cursor, maxVisible int) (start, end int) {
+	if total == 0 || maxVisible <= 0 {
+		return 0, 0
+	}
+	if cursor >= maxVisible {
+		start = cursor - maxVisible + 1
+	}
+	end = start + maxVisible
+	if end > total {
+		end = total
+	}
+	return start, end
+}
+
 func padRight(s string, n int) string {
 	w := lipgloss.Width(s)
 	if w >= n {

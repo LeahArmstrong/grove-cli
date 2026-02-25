@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
@@ -28,8 +29,17 @@ type PRViewState struct {
 	WorktreeBranches map[string]bool // branches that have worktrees
 	Creating         bool
 	CreatingPR       *tracker.PullRequest // PR being created
-	Filter           string
+	FilterInput      textinput.Model
 	ShowPreview      bool // toggle PR preview panel with Tab
+}
+
+// newPRFilterInput creates a configured textinput for PR filtering.
+func newPRFilterInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = "Filter: "
+	ti.Placeholder = ""
+	ti.CharLimit = 100
+	return ti
 }
 
 func (m Model) fetchPRsCmd() tea.Msg {
@@ -64,7 +74,7 @@ func (m Model) handlePRKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	filtered := filteredPRs(s.PRs, s.Filter)
+	filtered := filteredPRs(s.PRs, s.FilterInput.Value())
 
 	switch {
 	case key.Matches(msg, m.keys.Escape):
@@ -124,20 +134,16 @@ func (m Model) handlePRKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.Code == tea.KeyBackspace:
-		if len(s.Filter) > 0 {
-			s.Filter = s.Filter[:len(s.Filter)-1]
+	default:
+		// Route remaining keys through the filter textinput
+		prevVal := s.FilterInput.Value()
+		var cmd tea.Cmd
+		s.FilterInput, cmd = s.FilterInput.Update(msg)
+		if s.FilterInput.Value() != prevVal {
 			s.Cursor = 0
 		}
-		return m, nil
-
-	case isPrintableText(msg.Text):
-		s.Filter += msg.Text
-		s.Cursor = 0
-		return m, nil
+		return m, cmd
 	}
-
-	return m, nil
 }
 
 func filteredPRs(prs []*tracker.PullRequest, filter string) []*tracker.PullRequest {
