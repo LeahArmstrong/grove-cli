@@ -1,6 +1,10 @@
 package tui
 
-import "strings"
+import (
+	"strings"
+
+	lipgloss "charm.land/lipgloss/v2"
+)
 
 func filterItems(items []WorktreeItem, query string) []WorktreeItem {
 	query = strings.ToLower(query)
@@ -93,8 +97,9 @@ func exactBranchMatch(branches []string, name string) bool {
 }
 
 func padRight(s string, n int) string {
-	if len(s) >= n {
+	w := lipgloss.Width(s)
+	if w >= n {
 		return s
 	}
-	return s + strings.Repeat(" ", n-len(s))
+	return s + strings.Repeat(" ", n-w)
 }

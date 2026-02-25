@@ -2,10 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
 // DefaultToastDuration is how long toasts display before auto-expiry.
@@ -38,7 +39,7 @@ func (l ToastLevel) Icon() string {
 }
 
 // borderColor returns the border color for a toast level.
-func (l ToastLevel) borderColor() lipgloss.AdaptiveColor {
+func (l ToastLevel) borderColor() color.Color {
 	switch l {
 	case ToastSuccess:
 		return Colors.Success

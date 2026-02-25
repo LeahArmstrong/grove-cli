@@ -126,7 +126,7 @@ func TestRenderCreateNameV2WithDuplicate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := renderCreateNameV2(tt.state, 80)
+			got := renderCreateNameV2(tt.state, 120)
 			for _, want := range tt.wantStrs {
 				if !strings.Contains(got, want) {
 					t.Errorf("missing %q in output:\n%s", want, got)

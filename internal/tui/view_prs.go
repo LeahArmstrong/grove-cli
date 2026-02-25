@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
 	"github.com/LeahArmstrong/grove-cli/internal/state"
@@ -47,7 +47,7 @@ func (m Model) fetchPRsCmd() tea.Msg {
 	return prsFetchedMsg{prs: prs, err: err}
 }
 
-func (m Model) handlePRKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handlePRKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.prState == nil {
 		m.activeView = ViewDashboard
 		return m, nil
@@ -124,15 +124,15 @@ func (m Model) handlePRKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyBackspace:
+	case msg.Code == tea.KeyBackspace:
 		if len(s.Filter) > 0 {
 			s.Filter = s.Filter[:len(s.Filter)-1]
 			s.Cursor = 0
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyRunes:
-		s.Filter += string(msg.Runes)
+	case msg.Text != "":
+		s.Filter += msg.Text
 		s.Cursor = 0
 		return m, nil
 	}

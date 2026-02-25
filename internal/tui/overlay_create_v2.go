@@ -4,19 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // renderCreateV2 is the V2 dispatcher for the create wizard overlay.
 // It integrates the Stepper component and context summary for multi-step flows.
-// When UseHuhForms is true, it delegates rendering to Huh forms for applicable steps.
 func renderCreateV2(s *CreateState, width int, spinnerView string) string {
 	if s.Creating {
 		return renderCreateSpinnerV2(s, spinnerView)
-	}
-
-	if s.UseHuhForms {
-		return renderCreateHuh(s, width)
 	}
 
 	switch s.Step {
@@ -51,53 +46,6 @@ func calcOverlayWidth(width int) int {
 		w = 70
 	}
 	return w
-}
-
-// renderCreateHuh renders the create wizard using Huh forms for applicable steps.
-func renderCreateHuh(s *CreateState, width int) string {
-	// Steps that don't use Huh forms delegate to their manual V2 renderers
-	switch s.Step {
-	case CreateStepBranch:
-		return renderCreateBranchSelectorV2(s, width)
-	case CreateStepBranchAction:
-		return renderCreateBranchActionV2(s, width)
-	case CreateStepConfirm:
-		return renderCreateConfirmV2(s, width)
-	}
-
-	// Name step uses Huh form
-	overlayWidth := calcOverlayWidth(width)
-	contentWidth := overlayWidth - 6 // border + padding
-	indent := huhOverlayIndent
-	innerWidth := contentWidth - len(indent)*2
-
-	var b strings.Builder
-
-	// Stepper
-	stepLabels := []string{"Branch", "Name", "Confirm"}
-	stepper := NewStepper(stepLabels...)
-	stepper.Current = 1
-	b.WriteString(indentBlock(stepper.View(innerWidth), indent) + "\n\n")
-
-	// Context summary
-	b.WriteString(indentBlock(renderContextSummary(s, innerWidth), indent) + "\n\n")
-
-	// Render the Huh form for name input
-	if s.NameForm != nil {
-		b.WriteString(s.NameForm.View())
-		effectiveName := s.Name
-		if effectiveName == "" {
-			effectiveName = s.NameSuggestion
-		}
-		if effectiveName != "" && s.ProjectName != "" {
-			b.WriteString("\n" + Styles.DetailDim.Render(indent+"Will create: "+s.ProjectName+"-"+effectiveName))
-		}
-	}
-	b.WriteString("\n" + Styles.Footer.Render(indent+"[enter] next  [backspace] back  [esc] cancel"))
-
-	return Styles.OverlayBorderSuccess.Width(overlayWidth).Render(
-		Styles.OverlayTitle.Render("New Worktree") + "\n\n" + b.String(),
-	)
 }
 
 func renderCreateSpinnerV2(s *CreateState, spinnerView string) string {
@@ -173,7 +121,7 @@ func renderCreateBranchSelectorV2(s *CreateState, width int) string {
 		for i := start; i < end; i++ {
 			cursor := "  "
 			if i == s.BranchCursor {
-				cursor = Styles.ListCursor.String()
+				cursor = Styles.ListCursor.Render("❯ ")
 			}
 			if i < len(filtered) {
 				b.WriteString(indent + cursor + filtered[i] + "\n")
@@ -277,7 +225,7 @@ func renderCreateBranchActionV2(s *CreateState, width int) string {
 	for i, opt := range options {
 		cursor := "  "
 		if i == s.ActionChoice {
-			cursor = Styles.ListCursor.String()
+			cursor = Styles.ListCursor.Render("❯ ")
 		}
 		b.WriteString(indent + cursor + opt + "\n")
 	}

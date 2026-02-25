@@ -73,7 +73,7 @@ func renderPRViewV2(s *PRViewState, width int, spinnerView string) string {
 
 			cursor := "  "
 			if i == s.Cursor {
-				cursor = Styles.ListCursor.String()
+				cursor = Styles.ListCursor.Render("❯ ")
 			}
 
 			// Line 1: cursor + #number + title + branch

@@ -5,9 +5,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/plugins"
 )
@@ -41,8 +41,11 @@ func delegateColumnsV2(width int) delegateColumns {
 }
 
 // worktreeIndicator returns the leading indicator for a worktree item.
-// Priority: current (green ●) > dirty (yellow ●) > stale (✗) > selected (❯) > normal (space).
+// Selected always shows ❯. Non-selected shows status: ● (current/dirty), ✗ (stale), ○ (clean).
 func worktreeIndicator(item WorktreeItem, selected bool) string {
+	if selected {
+		return Styles.ListCursor.Render("❯")
+	}
 	switch {
 	case item.IsCurrent:
 		return Styles.StatusSuccess.Render("●")
@@ -50,10 +53,8 @@ func worktreeIndicator(item WorktreeItem, selected bool) string {
 		return Styles.StatusWarning.Render("●")
 	case item.IsPrunable:
 		return Styles.StatusDanger.Render("✗")
-	case selected:
-		return Styles.ListCursor.Render("❯")
 	default:
-		return " "
+		return Styles.TextMuted.Render("○")
 	}
 }
 

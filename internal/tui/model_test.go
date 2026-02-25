@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestUpdateDashboardNavigation(t *testing.T) {
@@ -284,7 +284,7 @@ func TestQuickSwitch(t *testing.T) {
 	t.Run("1 switches to first item", func(t *testing.T) {
 		m := newTestModel(withItems(5), withSize(80, 24))
 		// Item 0 is current (main), so pressing "1" should quit (current worktree)
-		result, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+		result, cmd := m.Update(makeKeyMsg("1"))
 		_ = result.(Model)
 		// It's the current worktree, so it should just quit
 		if cmd == nil {
@@ -294,7 +294,7 @@ func TestQuickSwitch(t *testing.T) {
 
 	t.Run("2 switches to second item", func(t *testing.T) {
 		m := newTestModel(withItems(5), withSize(80, 24))
-		result, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'2'}})
+		result, _ := m.Update(makeKeyMsg("2"))
 		m = result.(Model)
 		if m.switchTo == "" {
 			t.Error("expected switchTo to be set for non-current item")
@@ -303,7 +303,7 @@ func TestQuickSwitch(t *testing.T) {
 
 	t.Run("9 does nothing with only 5 items", func(t *testing.T) {
 		m := newTestModel(withItems(5), withSize(80, 24))
-		result, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'9'}})
+		result, _ := m.Update(makeKeyMsg("9"))
 		m = result.(Model)
 		if m.switchTo != "" {
 			t.Error("expected no switch for out-of-range number")
@@ -481,7 +481,7 @@ func TestWindowSizeMsg(t *testing.T) {
 
 func TestLoadingState(t *testing.T) {
 	m := newTestModel(withLoading(), withSize(80, 24))
-	v := m.View()
+	v := m.viewString()
 	if v == "" {
 		t.Error("expected non-empty view during loading")
 	}
@@ -786,7 +786,7 @@ func TestBulkEnterWithSelection(t *testing.T) {
 	m := newTestModel(withItems(5), withSize(80, 24))
 	m = sendKey(m, "a")
 	m = sendKey(m, " ") // select first
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := m.Update(makeKeyMsg("enter"))
 	if cmd == nil {
 		t.Error("expected cmd from bulk enter with selection")
 	}
@@ -847,7 +847,7 @@ func TestSpinnerTickWhenNotLoading(t *testing.T) {
 func TestEnterOnCurrentWorktree(t *testing.T) {
 	m := newTestModel(withItems(3), withSize(80, 24))
 	// Item 0 is current
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := m.Update(makeKeyMsg("enter"))
 	if cmd == nil {
 		t.Error("expected quit cmd for current worktree enter")
 	}
@@ -859,7 +859,7 @@ func TestEnterOnCurrentWorktree(t *testing.T) {
 func TestEnterOnNonCurrentWorktree(t *testing.T) {
 	m := newTestModel(withItems(3), withSize(80, 24))
 	m = sendKey(m, "j") // move to non-current
-	result, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	result, cmd := m.Update(makeKeyMsg("enter"))
 	m = result.(Model)
 	if cmd == nil {
 		t.Error("expected quit cmd")
@@ -988,7 +988,7 @@ func TestBranchActionDownAtMax(t *testing.T) {
 
 func TestQuitKeys(t *testing.T) {
 	m := newTestModel(withItems(1), withSize(80, 24))
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	_, cmd := m.Update(makeKeyMsg("q"))
 	if cmd == nil {
 		t.Error("expected quit cmd from q")
 	}
@@ -996,7 +996,7 @@ func TestQuitKeys(t *testing.T) {
 
 func TestEscQuitsDashboard(t *testing.T) {
 	m := newTestModel(withItems(1), withSize(80, 24))
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	_, cmd := m.Update(makeKeyMsg("esc"))
 	if cmd == nil {
 		t.Error("expected quit cmd from esc on dashboard")
 	}

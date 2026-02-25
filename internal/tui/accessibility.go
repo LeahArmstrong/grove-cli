@@ -5,9 +5,6 @@ import (
 	"math"
 	"os"
 	"strings"
-
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // hexToRGB parses a hex color string like "#FF00AA" into RGB components.
@@ -60,49 +57,28 @@ func isHighContrast() bool {
 func highContrastColorScheme() ColorScheme {
 	return ColorScheme{
 		// Brand — brighter for dark, darker for light
-		Primary:   lipgloss.AdaptiveColor{Dark: "#C4B5FD", Light: "#6D28D9"},
-		Secondary: lipgloss.AdaptiveColor{Dark: "#7DD3FC", Light: "#0369A1"},
+		Primary:   adaptiveColor("#C4B5FD", "#6D28D9"),
+		Secondary: adaptiveColor("#7DD3FC", "#0369A1"),
 
 		// Status — pushed to higher contrast
-		Success: lipgloss.AdaptiveColor{Dark: "#6EE7B7", Light: "#047857"},
-		Warning: lipgloss.AdaptiveColor{Dark: "#FDE68A", Light: "#B45309"},
-		Danger:  lipgloss.AdaptiveColor{Dark: "#FCA5A5", Light: "#B91C1C"},
-		Info:    lipgloss.AdaptiveColor{Dark: "#93C5FD", Light: "#1D4ED8"},
+		Success: adaptiveColor("#6EE7B7", "#047857"),
+		Warning: adaptiveColor("#FDE68A", "#B45309"),
+		Danger:  adaptiveColor("#FCA5A5", "#B91C1C"),
+		Info:    adaptiveColor("#93C5FD", "#1D4ED8"),
 
 		// Surface — same as default (backgrounds)
-		SurfaceBg:     lipgloss.AdaptiveColor{Dark: "#1E1E2E", Light: "#FFFFFF"},
-		SurfaceFg:     lipgloss.AdaptiveColor{Dark: "#E4E8F7", Light: "#0F172A"},
-		SurfaceDim:    lipgloss.AdaptiveColor{Dark: "#7F849C", Light: "#64748B"},
-		SurfaceBorder: lipgloss.AdaptiveColor{Dark: "#585B70", Light: "#94A3B8"},
+		SurfaceBg:     adaptiveColor("#1E1E2E", "#FFFFFF"),
+		SurfaceFg:     adaptiveColor("#E4E8F7", "#0F172A"),
+		SurfaceDim:    adaptiveColor("#7F849C", "#64748B"),
+		SurfaceBorder: adaptiveColor("#585B70", "#94A3B8"),
 
 		// Selection / Header
-		SelectionBg: lipgloss.AdaptiveColor{Dark: "#313244", Light: "#E2E8F0"},
-		HeaderBg:    lipgloss.AdaptiveColor{Dark: "#181825", Light: "#F1F5F9"},
+		SelectionBg: adaptiveColor("#313244", "#E2E8F0"),
+		HeaderBg:    adaptiveColor("#181825", "#F1F5F9"),
 
 		// Text — all meet 4.5:1 including muted
-		TextNormal: lipgloss.AdaptiveColor{Dark: "#E4E8F7", Light: "#0F172A"},
-		TextBright: lipgloss.AdaptiveColor{Dark: "#FFFFFF", Light: "#000000"},
-		TextMuted:  lipgloss.AdaptiveColor{Dark: "#A6ADC8", Light: "#475569"},
+		TextNormal: adaptiveColor("#E4E8F7", "#0F172A"),
+		TextBright: adaptiveColor("#FFFFFF", "#000000"),
+		TextMuted:  adaptiveColor("#A6ADC8", "#475569"),
 	}
-}
-
-// NewAccessibleCreateNameForm creates a Huh form with accessible mode enabled.
-func NewAccessibleCreateNameForm(nameValue *string, projectName string, existingItems []WorktreeItem) *huh.Form {
-	description := "Worktree name"
-	if projectName != "" {
-		description = fmt.Sprintf("Will create: %s-<name>", projectName)
-	}
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Worktree Name").
-				Description(description).
-				Placeholder("feature-name").
-				Validate(createNameValidator(existingItems, "")).
-				Value(nameValue),
-		),
-	).WithTheme(huh.ThemeCharm()).WithAccessible(true)
-
-	return form
 }
