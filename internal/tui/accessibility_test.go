@@ -139,7 +139,11 @@ func TestHexToRGB(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.hex, func(t *testing.T) {
-			r, g, b := hexToRGB(tt.hex)
+			r, g, b, err := hexToRGB(tt.hex)
+			if err != nil {
+				t.Errorf("hexToRGB(%s) unexpected error: %v", tt.hex, err)
+				return
+			}
 			if r != tt.r || g != tt.g || b != tt.b {
 				t.Errorf("hexToRGB(%s) = (%d,%d,%d), want (%d,%d,%d)",
 					tt.hex, r, g, b, tt.r, tt.g, tt.b)

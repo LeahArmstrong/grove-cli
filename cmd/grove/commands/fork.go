@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/grove"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
@@ -57,6 +58,9 @@ Examples:
 			return fmt.Errorf("worktree name cannot be empty")
 		}
 
+		w := cli.NewStdout()
+		stderr := cli.NewStderr()
+
 		mgr, err := worktree.NewManager(ctx.ProjectRoot)
 		if err != nil {
 			return fmt.Errorf("failed to initialize worktree manager: %w", err)
@@ -81,7 +85,7 @@ Examples:
 			if err == nil && ws != nil && ws.Mirror != "" {
 				// For environment worktrees, fork from the mirror's HEAD
 				baseRef = ws.Mirror
-				fmt.Printf("Forking from environment worktree (mirror: %s)\n", ws.Mirror)
+				cli.Info(w, "Forking from environment worktree (mirror: %s)", ws.Mirror)
 			}
 		}
 
@@ -95,7 +99,7 @@ Examples:
 		checkCmd := exec.Command("git", "-C", currentTree.Path, "show-ref", "--verify", "--quiet", "refs/heads/"+newBranchName)
 		if err := checkCmd.Run(); err == nil {
 			// Branch exists
-			fmt.Fprintf(os.Stderr, "Error: branch '%s' already exists\n", newBranchName)
+			cli.Error(stderr, "branch '%s' already exists", newBranchName)
 			os.Exit(exitcode.ResourceExists)
 		}
 
@@ -116,33 +120,35 @@ Examples:
 				}
 
 				files, _ := wipHandler.ListWIPFiles()
-				fmt.Printf("\n⚠ Uncommitted changes detected (%d files):\n", len(files))
+				cli.Warning(w, "Uncommitted changes detected (%d files):", len(files))
 				for i, f := range files {
 					if i >= 5 {
-						fmt.Printf("  ... and %d more\n", len(files)-5)
+						cli.Faint(w, "  ... and %d more", len(files)-5)
 						break
 					}
-					fmt.Printf("  %s\n", f)
+					cli.Faint(w, "  %s", f)
 				}
-				fmt.Println("\nHow do you want to handle them?")
-				fmt.Println("  1. Move to fork (fork starts with changes, current becomes clean)")
-				fmt.Println("  2. Copy to fork (both have changes)")
-				fmt.Println("  3. Leave in current (fork starts clean)")
-				fmt.Println("  4. Cancel")
-				fmt.Print("\nChoice [1-4]: ")
 
-				var choice string
-				_, _ = fmt.Scanln(&choice)
+				choice, err := cli.Choose("How do you want to handle uncommitted changes?", []string{
+					"Move to fork",
+					"Copy to fork",
+					"Leave in current",
+					"Cancel",
+				})
+				if err != nil {
+					cli.Info(w, "Cancelled")
+					os.Exit(exitcode.UserCancelled)
+				}
 
 				switch choice {
-				case "1":
+				case "Move to fork":
 					forkMoveWIP = true
-				case "2":
+				case "Copy to fork":
 					forkCopyWIP = true
-				case "3":
+				case "Leave in current":
 					forkNoWIP = true
-				default:
-					fmt.Println("Cancelled")
+				case "Cancel":
+					cli.Info(w, "Cancelled")
 					os.Exit(exitcode.UserCancelled)
 				}
 			}
@@ -160,7 +166,7 @@ Examples:
 		// Create branch from base reference
 		createBranchCmd := exec.Command("git", "-C", currentTree.Path, "branch", newBranchName, baseRef)
 		if output, err := createBranchCmd.CombinedOutput(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: git operation failed: %s\n", output)
+			cli.Error(stderr, "git operation failed: %s", output)
 			os.Exit(exitcode.GitOperationFailed)
 		}
 
@@ -177,7 +183,7 @@ Examples:
 			return fmt.Errorf("failed to find created worktree")
 		}
 
-		fmt.Printf("✓ Created worktree '%s' with branch '%s'\n", name, newBranchName)
+		cli.Success(w, "Created worktree '%s' with branch '%s'", name, newBranchName)
 
 		// Symlink config.toml from main worktree
 		_ = grove.EnsureConfigSymlink(ctx.ProjectRoot, newTree.Path)
@@ -186,23 +192,23 @@ Examples:
 		if len(wipPatch) > 0 && (forkMoveWIP || forkCopyWIP) {
 			newWipHandler := worktree.NewWIPHandler(newTree.Path)
 			if err := newWipHandler.ApplyPatch(wipPatch); err != nil {
-				fmt.Printf("⚠ Failed to apply changes to fork: %v\n", err)
-				fmt.Println("⚠ Changes are preserved in the source worktree")
+				cli.Warning(w, "Failed to apply changes to fork: %v", err)
+				cli.Warning(w, "Changes are preserved in the source worktree")
 			} else {
 				if forkCopyWIP {
-					fmt.Println("✓ Copied uncommitted changes to fork")
+					cli.Success(w, "Copied uncommitted changes to fork")
 				}
 				// Reset source worktree only after successful patch application
 				if forkMoveWIP {
 					resetCmd := exec.Command("git", "-C", currentTree.Path, "checkout", "--", ".")
 					if output, err := resetCmd.CombinedOutput(); err != nil {
-						fmt.Printf("warning: changes applied to fork but failed to reset source: %v\n%s", err, output)
+						cli.Warning(w, "changes applied to fork but failed to reset source: %v\n%s", err, output)
 					} else {
 						cleanCmd := exec.Command("git", "-C", currentTree.Path, "clean", "-fd")
 						if output, err := cleanCmd.CombinedOutput(); err != nil {
-							fmt.Printf("warning: failed to clean untracked files in source: %v\n%s", err, output)
+							cli.Warning(w, "failed to clean untracked files in source: %v\n%s", err, output)
 						}
-						fmt.Println("✓ Moved uncommitted changes to fork")
+						cli.Success(w, "Moved uncommitted changes to fork")
 					}
 				}
 			}
@@ -218,8 +224,8 @@ Examples:
 			ParentWorktree: parentName,
 		}
 		if err := ctx.State.AddWorktree(name, wsState); err != nil {
-			fmt.Printf("warning: worktree created but state tracking failed: %v\n", err)
-			fmt.Println("run 'grove repair' to fix")
+			cli.Warning(w, "worktree created but state tracking failed: %v", err)
+			cli.Info(w, "run 'grove repair' to fix")
 		}
 
 		// Fire post-create hook
@@ -230,7 +236,7 @@ Examples:
 			MainPath:     ctx.ProjectRoot,
 		}
 		if err := hooks.Fire(hooks.EventPostCreate, hookCtx); err != nil {
-			fmt.Printf("⚠ Post-create hook failed: %v\n", err)
+			cli.Warning(w, "Post-create hook failed: %v", err)
 		}
 
 		projectName := mgr.GetProjectName()
@@ -239,9 +245,9 @@ Examples:
 		if tmux.IsTmuxAvailable() {
 			sessionName := worktree.TmuxSessionName(projectName, name)
 			if err := tmux.CreateSession(sessionName, newTree.Path); err != nil {
-				fmt.Printf("⚠ Failed to create tmux session: %v\n", err)
+				cli.Warning(w, "Failed to create tmux session: %v", err)
 			} else {
-				fmt.Printf("✓ Created tmux session '%s'\n", sessionName)
+				cli.Success(w, "Created tmux session '%s'", sessionName)
 			}
 		}
 
@@ -280,7 +286,7 @@ Examples:
 			if tmux.IsTmuxAvailable() && tmux.IsInsideTmux() {
 				sessionName := worktree.TmuxSessionName(projectName, name)
 				if err := tmux.SwitchSession(sessionName); err != nil {
-					fmt.Printf("⚠ Failed to switch session: %v\n", err)
+					cli.Warning(w, "Failed to switch session: %v", err)
 				} else {
 					tmuxSwitched = true
 				}
@@ -293,15 +299,15 @@ Examples:
 			if !tmuxSwitched {
 				hasShellIntegration := os.Getenv("GROVE_SHELL") == "1"
 				if hasShellIntegration {
-					fmt.Printf("cd:%s\n", newTree.Path)
+					cli.Directive("cd", newTree.Path)
 				} else {
-					fmt.Fprintf(os.Stderr, "\nNote: Directory switching requires shell integration.\n")
-					fmt.Fprintf(os.Stderr, "To change directory manually:\n")
-					fmt.Fprintf(os.Stderr, "  cd %s\n", newTree.Path)
+					cli.Info(stderr, "Directory switching requires shell integration.")
+					cli.Faint(stderr, "To change directory manually:")
+					cli.Faint(stderr, "  cd %s", newTree.Path)
 				}
 			}
 		} else {
-			fmt.Printf("\nTo switch to the new worktree:\n  grove to %s\n", name)
+			cli.Info(w, "To switch to the new worktree: grove to %s", name)
 		}
 
 		return nil

@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -20,6 +21,8 @@ var lastCmd = &cobra.Command{
 	Short: "Switch to the previous worktree",
 	Long:  `Switch to the last worktree you were working in.`,
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		stderr := cli.NewStderr()
+
 		// Try to get last worktree from state first (V2 approach)
 		lastWorktree, err := ctx.State.GetLastWorktree()
 		if err != nil || lastWorktree == "" {
@@ -105,14 +108,16 @@ var lastCmd = &cobra.Command{
 			hasShellIntegration := os.Getenv("GROVE_SHELL") == "1"
 
 			if hasShellIntegration {
-				fmt.Printf("cd:%s\n", targetTree.Path)
+				cli.Directive("cd", targetTree.Path)
 			} else {
-				fmt.Fprintf(os.Stderr, "\nNote: Directory switching requires shell integration.\n")
-				fmt.Fprintf(os.Stderr, "Add this to your shell config (~/.zshrc or ~/.bashrc):\n\n")
-				fmt.Fprintf(os.Stderr, "  eval \"$(grove install zsh)\"   # for zsh\n")
-				fmt.Fprintf(os.Stderr, "  eval \"$(grove install bash)\"  # for bash\n\n")
-				fmt.Fprintf(os.Stderr, "To change directory manually:\n")
-				fmt.Fprintf(os.Stderr, "  cd %s\n", targetTree.Path)
+				cli.Faint(stderr, "Note: Directory switching requires shell integration.")
+				cli.Faint(stderr, "Add this to your shell config (~/.zshrc or ~/.bashrc):")
+				_, _ = fmt.Fprintf(stderr, "\n")
+				cli.Faint(stderr, "  eval \"$(grove install zsh)\"   # for zsh")
+				cli.Faint(stderr, "  eval \"$(grove install bash)\"  # for bash")
+				_, _ = fmt.Fprintf(stderr, "\n")
+				cli.Faint(stderr, "To change directory manually:")
+				cli.Faint(stderr, "  cd %s", targetTree.Path)
 			}
 		}
 
