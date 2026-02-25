@@ -1,4 +1,5 @@
 # Grove - Worktree Flow Manager
+**This application is unreleased. Do not hesitate to make changes or completely refactor logic if it can be improved**
 
 ## Project Context
 Grove is a Go CLI tool for managing git worktrees with tmux integration.
@@ -41,6 +42,20 @@ Commands that change directories output `cd:/path/to/dir` which the shell wrappe
 - `make fmt` - Format code
 - `make clean` - Clean build artifacts
 - `make install` - Install locally
+
+## TUI Stack
+
+The TUI is built on **Bubbletea v2** (Elm Architecture) with the Charm ecosystem:
+- `charm.land/bubbletea/v2` — framework (Model/Update/View)
+- `charm.land/lipgloss/v2` — styling (ANSI-aware widths, colors, borders)
+- `charm.land/bubbles/v2` — components (list, textinput, viewport)
+
+Key patterns:
+- **ANSI-aware string measurement** — always use `lipgloss.Width(s)` not `len(s)` for visible width of styled text
+- **Style.Render()** for applying styles to text, not `Style.SetString()` + `Style.String()`
+- `internal/tui/theme_v2.go` — centralized `StyleSet` with semantic color scheme
+- `internal/tui/list_v2.go` — custom `list.ItemDelegate` with indicator/status columns
+- `internal/tui/list.go` — V1 table-style delegate with column headers
 
 ## Code Style
 - Follow standard Go formatting (gofmt)

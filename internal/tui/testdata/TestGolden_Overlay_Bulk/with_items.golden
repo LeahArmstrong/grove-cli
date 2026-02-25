@@ -1,11 +1,11 @@
- test-project  ·  5 worktrees  ·  on root                                ● root 
-     NAME BRANCH AGE     ± ↕  ⬡ ◆                                               
- ────────────────────────────────────────────────────────────────────────────── 
-                                                                                
- 1 ●   2h ago  ●                                                                
+[2m [1m[1mtest-project[m  ·  5 worktrees  ·  on root                                ● root[m [m
+[2m     NAME BRANCH AGE     ± ↕    ⬡ ◆                                             [m
+[2m ────────────────────────────────────────────────────────────────────────────── [m
+[2m                                                                                [m
+[2m 1 ❯ [1m[m  2h ago  ●                                                                [m
           ╭─────────────────────────────────────────────────────────╮
           │                                                         │
-          │  Bulk Delete                                            │
+          │  [1mBulk Delete[m                                            │
           │                                                         │
           │  Select merged worktrees to delete (2/4 selected)       │
           │                                                         │
@@ -17,8 +17,8 @@
           │  [space] toggle  [enter] delete selected  [esc] cancel  │
           │                                                         │
           ╰─────────────────────────────────────────────────────────╯
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
+[2m                                                                                [m
+[2m                                                                                [m
+[2m                                                                                [m
+[2m                                                                                [m
+[2m                                                                                [m

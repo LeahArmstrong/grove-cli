@@ -71,7 +71,7 @@ func renderBulk(s *BulkState, width int) string {
 		item := s.Items[i]
 		cursor := "  "
 		if i == s.Cursor {
-			cursor = Styles.ListCursor.String()
+			cursor = Styles.ListCursor.Render("❯ ")
 		}
 
 		checkbox := "[ ]"

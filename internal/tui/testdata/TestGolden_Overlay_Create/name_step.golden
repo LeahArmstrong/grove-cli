@@ -1,24 +1,24 @@
- test-project  ·  3 worktrees  ·  on root                                ● root 
-     NAME BRANCH AGE     ± ↕  ⬡ ◆                                               
-              ╭──────────────────────────────────────────────────╮
-              │                                                  │
-              │  New Worktree                                    │
-              │                                                  │
-              │    ●━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━○       │
-              │    Branch ✓         Name           Confirm       │
-              │                                                  │
-              │    ╭──────────────────────────────────────╮      │
-              │    │ Summary                              │      │
-              │    │ Branch:   feature/auth (existing)    │      │
-              │    ╰──────────────────────────────────────╯      │
-              │                                                  │
-              │    Name: auth                                    │
-              │    → test-project-auth                           │
-              │                                                  │
-              │    ✓ valid name                                  │
-              │                                                  │
-              │    [enter] next  [backspace] back  [esc] cancel  │
-              │                                                  │
-              ╰──────────────────────────────────────────────────╯
-                                                                                
-                                                                                
+[2m [1m[1mtest-project[m  ·  3 worktrees  ·  on root                                ● root[m [m
+               ╭────────────────────────────────────────────────╮
+               │                                                │
+               │  [1mNew Worktree[m                                  │
+               │                                                │
+               │    ●━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━○     │
+               │    Branch ✓         [1mName[m           Confirm     │
+               │                                                │
+               │    ╭────────────────────────────────────╮      │
+               │    │ Summary                            │      │
+               │    │ Branch:   feature/auth (existing)  │      │
+               │    ╰────────────────────────────────────╯      │
+               │                                                │
+               │    Name: auth                                  │
+               │    → test-project-auth                         │
+               │                                                │
+               │    ✓ valid name                                │
+               │                                                │
+               │    [enter] next  [backspace] back  [esc]       │
+               │  cancel                                        │
+               │                                                │
+               ╰────────────────────────────────────────────────╯
+[2m                                                                                [m
+[2m                                                                                [m

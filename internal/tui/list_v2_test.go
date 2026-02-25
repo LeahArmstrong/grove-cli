@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/list"
+	"charm.land/bubbles/v2/list"
 )
 
 func TestWorktreeDelegateV2_Indicators(t *testing.T) {
@@ -33,22 +33,22 @@ func TestWorktreeDelegateV2_Indicators(t *testing.T) {
 			wantIndicator: "❯",
 		},
 		{
-			name:          "Normal shows space",
+			name:          "Normal shows circle",
 			item:          WorktreeItem{ShortName: "other", Branch: "other"},
 			selected:      false,
-			wantIndicator: " ",
+			wantIndicator: "○",
 		},
 		{
-			name:          "Current and selected shows green dot",
+			name:          "Current and selected shows cursor",
 			item:          WorktreeItem{IsCurrent: true, ShortName: "main", Branch: "main"},
 			selected:      true,
-			wantIndicator: "●",
+			wantIndicator: "❯",
 		},
 		{
-			name:          "Dirty and selected shows yellow dot",
+			name:          "Dirty and selected shows cursor",
 			item:          WorktreeItem{IsDirty: true, ShortName: "feature", Branch: "feat"},
 			selected:      true,
-			wantIndicator: "●",
+			wantIndicator: "❯",
 		},
 		{
 			name:          "Stale worktree shows stale indicator",

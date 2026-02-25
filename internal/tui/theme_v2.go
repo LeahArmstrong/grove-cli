@@ -1,38 +1,54 @@
 package tui
 
 import (
+	"image/color"
 	"os"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
-// ColorScheme defines semantic colors using AdaptiveColor for automatic
-// dark/light terminal adaptation.
+// adaptiveColor picks between a dark and light hex color.
+// In v2 lipgloss, AdaptiveColor no longer exists.
+// We default to dark mode and allow override via COLORFGBG or GROVE_LIGHT_MODE.
+func adaptiveColor(dark, light string) color.Color {
+	if isLightMode() {
+		return lipgloss.Color(light)
+	}
+	return lipgloss.Color(dark)
+}
+
+// isLightMode checks if the terminal is in light mode.
+func isLightMode() bool {
+	_, lm := os.LookupEnv("GROVE_LIGHT_MODE")
+	return lm
+}
+
+// ColorScheme defines semantic colors for the TUI.
 type ColorScheme struct {
 	// Brand
-	Primary   lipgloss.AdaptiveColor
-	Secondary lipgloss.AdaptiveColor
+	Primary   color.Color
+	Secondary color.Color
 
 	// Status
-	Success lipgloss.AdaptiveColor
-	Warning lipgloss.AdaptiveColor
-	Danger  lipgloss.AdaptiveColor
-	Info    lipgloss.AdaptiveColor
+	Success color.Color
+	Warning color.Color
+	Danger  color.Color
+	Info    color.Color
 
 	// Surface
-	SurfaceBg     lipgloss.AdaptiveColor
-	SurfaceFg     lipgloss.AdaptiveColor
-	SurfaceDim    lipgloss.AdaptiveColor
-	SurfaceBorder lipgloss.AdaptiveColor
+	SurfaceBg     color.Color
+	SurfaceFg     color.Color
+	SurfaceDim    color.Color
+	SurfaceBorder color.Color
 
 	// Selection / Header
-	SelectionBg lipgloss.AdaptiveColor
-	HeaderBg    lipgloss.AdaptiveColor
+	SelectionBg color.Color
+	HeaderBg    color.Color
 
 	// Text
-	TextNormal lipgloss.AdaptiveColor
-	TextBright lipgloss.AdaptiveColor
-	TextMuted  lipgloss.AdaptiveColor
+	TextNormal color.Color
+	TextBright color.Color
+	TextMuted  color.Color
 }
 
 // Colors is the global color scheme. Initialized respecting NO_COLOR.
@@ -42,33 +58,33 @@ var Colors = NewColorScheme()
 func defaultColorScheme() ColorScheme {
 	return ColorScheme{
 		// Brand — purple/blue inspired by lazygit/charm aesthetics
-		Primary:   lipgloss.AdaptiveColor{Dark: "#A78BFA", Light: "#7C3AED"},
-		Secondary: lipgloss.AdaptiveColor{Dark: "#38BDF8", Light: "#0369A1"},
+		Primary:   adaptiveColor("#A78BFA", "#7C3AED"),
+		Secondary: adaptiveColor("#38BDF8", "#0369A1"),
 
 		// Status — Tailwind-inspired semantic colors (light adjusted for WCAG AA)
-		Success: lipgloss.AdaptiveColor{Dark: "#34D399", Light: "#047857"},
-		Warning: lipgloss.AdaptiveColor{Dark: "#FBBF24", Light: "#92400E"},
-		Danger:  lipgloss.AdaptiveColor{Dark: "#F87171", Light: "#DC2626"},
-		Info:    lipgloss.AdaptiveColor{Dark: "#60A5FA", Light: "#2563EB"},
+		Success: adaptiveColor("#34D399", "#047857"),
+		Warning: adaptiveColor("#FBBF24", "#92400E"),
+		Danger:  adaptiveColor("#F87171", "#DC2626"),
+		Info:    adaptiveColor("#60A5FA", "#2563EB"),
 
 		// Surface — Catppuccin Mocha (dark) / Slate (light)
-		SurfaceBg:     lipgloss.AdaptiveColor{Dark: "#1E1E2E", Light: "#FFFFFF"},
-		SurfaceFg:     lipgloss.AdaptiveColor{Dark: "#CDD6F4", Light: "#1E293B"},
-		SurfaceDim:    lipgloss.AdaptiveColor{Dark: "#585B70", Light: "#94A3B8"},
-		SurfaceBorder: lipgloss.AdaptiveColor{Dark: "#45475A", Light: "#CBD5E1"},
+		SurfaceBg:     adaptiveColor("#1E1E2E", "#FFFFFF"),
+		SurfaceFg:     adaptiveColor("#CDD6F4", "#1E293B"),
+		SurfaceDim:    adaptiveColor("#585B70", "#94A3B8"),
+		SurfaceBorder: adaptiveColor("#45475A", "#CBD5E1"),
 
 		// Selection / Header
-		SelectionBg: lipgloss.AdaptiveColor{Dark: "#313244", Light: "#E2E8F0"},
-		HeaderBg:    lipgloss.AdaptiveColor{Dark: "#181825", Light: "#F1F5F9"},
+		SelectionBg: adaptiveColor("#313244", "#E2E8F0"),
+		HeaderBg:    adaptiveColor("#181825", "#F1F5F9"),
 
 		// Text
-		TextNormal: lipgloss.AdaptiveColor{Dark: "#CDD6F4", Light: "#1E293B"},
-		TextBright: lipgloss.AdaptiveColor{Dark: "#FFFFFF", Light: "#0F172A"},
-		TextMuted:  lipgloss.AdaptiveColor{Dark: "#9399B2", Light: "#475569"},
+		TextNormal: adaptiveColor("#CDD6F4", "#1E293B"),
+		TextBright: adaptiveColor("#FFFFFF", "#0F172A"),
+		TextMuted:  adaptiveColor("#9399B2", "#475569"),
 	}
 }
 
-// noColorScheme returns a ColorScheme with all empty colors for NO_COLOR mode.
+// noColorScheme returns a ColorScheme with all nil colors for NO_COLOR mode.
 func noColorScheme() ColorScheme {
 	return ColorScheme{}
 }
@@ -212,8 +228,8 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		NormalItem:    lipgloss.NewStyle().Foreground(cs.TextNormal),
 		CurrentItem:   lipgloss.NewStyle().Foreground(cs.Secondary),
 		DimmedItem:    lipgloss.NewStyle().Foreground(cs.TextMuted),
-		ListCursor:    lipgloss.NewStyle().Foreground(cs.Primary).SetString("❯ "),
-		ListCursorDim: lipgloss.NewStyle().SetString("  "),
+		ListCursor:    lipgloss.NewStyle().Foreground(cs.Primary),
+		ListCursorDim: lipgloss.NewStyle(),
 
 		// Status badges
 		StatusClean:          lipgloss.NewStyle().Foreground(cs.Success),
