@@ -155,6 +155,7 @@ func filteredPRs(prs []*tracker.PullRequest, filter string) []*tracker.PullReque
 	for _, pr := range prs {
 		if strings.Contains(strings.ToLower(pr.Title), lower) ||
 			strings.Contains(strings.ToLower(pr.Branch), lower) ||
+			strings.Contains(strings.ToLower(pr.Author), lower) ||
 			strings.Contains(fmt.Sprintf("#%d", pr.Number), filter) {
 			result = append(result, pr)
 		}

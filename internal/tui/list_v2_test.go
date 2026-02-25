@@ -114,24 +114,29 @@ func TestWorktreeDelegateV2_TmuxBadge(t *testing.T) {
 	}
 }
 
-func TestWorktreeDelegateV2_ResponsiveColumns(t *testing.T) {
+func TestComputeDelegateWidthsV2_ContentAdaptive(t *testing.T) {
+	items := []list.Item{
+		WorktreeItem{ShortName: "pr-13093-fix-disabled", Branch: "fix/disable-feature"},
+		WorktreeItem{ShortName: "main", Branch: "main"},
+	}
+
 	tests := []struct {
 		name        string
 		width       int
 		wantNameMin int
 		wantNameMax int
 	}{
-		{"Narrow (80)", 80, 14, 18},
-		{"Medium (100)", 100, 18, 22},
-		{"Wide (140)", 140, 22, 28},
+		{"Narrow (80)", 80, 10, 40},
+		{"Medium (100)", 100, 10, 40},
+		{"Wide (140)", 140, 10, 40},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cols := delegateColumnsV2(tt.width)
-			if cols.Name < tt.wantNameMin || cols.Name > tt.wantNameMax {
-				t.Errorf("delegateColumnsV2(%d).Name = %d, want in [%d, %d]",
-					tt.width, cols.Name, tt.wantNameMin, tt.wantNameMax)
+			d := ComputeDelegateWidthsV2(items, tt.width)
+			if d.NameWidth < tt.wantNameMin || d.NameWidth > tt.wantNameMax {
+				t.Errorf("ComputeDelegateWidthsV2(%d).NameWidth = %d, want in [%d, %d]",
+					tt.width, d.NameWidth, tt.wantNameMin, tt.wantNameMax)
 			}
 		})
 	}
