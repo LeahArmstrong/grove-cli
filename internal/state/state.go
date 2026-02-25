@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -41,6 +42,7 @@ type WorktreeState struct {
 type Manager struct {
 	groveDir  string // Path to .grove directory
 	stateFile string
+	lockFile  string // .grove/state.lock
 	mu        sync.RWMutex
 	state     *State
 }
@@ -58,10 +60,12 @@ func NewManager(groveDir string) (*Manager, error) {
 	}
 
 	stateFile := filepath.Join(groveDir, "state.json")
+	lockFile := filepath.Join(groveDir, "state.lock")
 
 	mgr := &Manager{
 		groveDir:  groveDir,
 		stateFile: stateFile,
+		lockFile:  lockFile,
 		state:     newEmptyState(),
 	}
 
@@ -243,14 +247,38 @@ func (m *Manager) load() error {
 	return nil
 }
 
-// save writes the state to disk
+// fileLock acquires an exclusive file lock for cross-process safety.
+func (m *Manager) fileLock() (*os.File, error) {
+	f, err := os.OpenFile(m.lockFile, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("open state lock: %w", err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("acquire state lock: %w", err)
+	}
+	return f, nil
+}
+
+// fileUnlock releases the file lock.
+func (m *Manager) fileUnlock(f *os.File) {
+	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	_ = f.Close()
+}
+
+// save writes the state to disk with file locking and atomic rename.
 func (m *Manager) save() error {
+	f, err := m.fileLock()
+	if err != nil {
+		return fmt.Errorf("failed to lock state: %w", err)
+	}
+	defer m.fileUnlock(f)
+
 	data, err := json.MarshalIndent(m.state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal state: %w", err)
 	}
 
-	// Write atomically by writing to temp file and renaming
 	tmpFile := m.stateFile + ".tmp"
 	if err := os.WriteFile(tmpFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write state file: %w", err)

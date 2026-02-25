@@ -215,7 +215,15 @@ func StoreLastSession(name string) error {
 	}
 
 	lastSessionFile := filepath.Join(configDir, "last_session")
-	return os.WriteFile(lastSessionFile, []byte(name), 0644)
+	tmpFile := lastSessionFile + ".tmp"
+	if err := os.WriteFile(tmpFile, []byte(name), 0644); err != nil {
+		return fmt.Errorf("write last session: %w", err)
+	}
+	if err := os.Rename(tmpFile, lastSessionFile); err != nil {
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("save last session: %w", err)
+	}
+	return nil
 }
 
 // GetLastSession retrieves the name of the last session

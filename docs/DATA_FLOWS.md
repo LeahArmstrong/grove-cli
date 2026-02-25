@@ -42,7 +42,7 @@ graph LR
 4. **Environment overrides** -- `GROVE_NO_COLOR`, `GROVE_DEBUG`, `GROVE_NONINTERACTIVE` (runtime-only, not persisted)
 5. **Validation** -- `Validate()` in `validate.go` checks required fields and enum values
 
-**Merge behavior:** `mergeConfigs()` does field-by-field override -- non-zero/non-nil values in the override replace the base. Protection lists (`Protected`, `Immutable`) use **whole-list replacement**, not append (see CF-5 below).
+**Merge behavior:** `mergeConfigs()` does field-by-field override -- non-zero/non-nil values in the override replace the base. Protection lists (`Protected`, `Immutable`) use **deduplicated union** semantics -- project-level protections are merged with global protections so that global protections are never silently lost (CF-5 resolved).
 
 ### state.State + state.WorktreeState
 
@@ -73,7 +73,7 @@ WorktreeState
 
 **Persistence:** `.grove/state.json` in the project root (main worktree only).
 
-**Atomic write mechanism:** `save()` writes to `state.json.tmp` then `os.Rename()` to `state.json`. This is atomic on POSIX filesystems at the rename level, but the Manager holds an in-process `sync.RWMutex` -- there is **no cross-process file lock** (see CF-1).
+**Atomic write mechanism:** `save()` acquires a cross-process file lock (`syscall.Flock` on `.grove/state.lock`), writes to `state.json.tmp`, then `os.Rename()` to `state.json`. The Manager also holds an in-process `sync.RWMutex` for goroutine safety (CF-1 mitigated).
 
 **Version migration:** `migrateStateVersion()` handles V0 -> V1 (sets version number). `MigrateFromLegacy()` handles migration from the old global `frozen.json` format.
 
@@ -303,7 +303,7 @@ sequenceDiagram
     N->>H: Fire(post-create) -- plugin hooks
 ```
 
-**Step ordering risk:** State is written (step 4) before tmux session creation (step 5) and hook execution (steps 6-7). If tmux or hooks fail, state already contains the worktree entry. See CF-2.
+**Step ordering:** State is written (step 4) before tmux session creation (step 5) and hook execution (steps 6-7). If tmux or hooks fail, state already contains the worktree entry. State write errors are now surfaced as warnings with `grove repair` guidance (CF-2 resolved).
 
 ### Worktree Switching: `grove to`
 
@@ -373,7 +373,7 @@ sequenceDiagram
 
 **Protection checks:** A worktree is protected if it appears in `config.Protection.Protected` OR if `state.WorktreeState.Environment == true`. Removal requires both `--force` and `--unprotect`.
 
-**Step ordering:** Tmux session is killed first (step 3), then the worktree is removed (step 5), then state is cleaned up (step 6). If worktree removal fails, the tmux session is already gone. See CF-2.
+**Step ordering:** Worktree is removed first, then state is cleaned up, then the tmux session is killed. This ensures that if worktree removal fails, the user retains their tmux session. State removal errors are surfaced as warnings (CF-2 resolved).
 
 ### Worktree Fork: `grove fork`
 
@@ -414,7 +414,7 @@ sequenceDiagram
     end
 ```
 
-**WIP data loss risk:** With `--move-wip`, the working tree is reset (`git checkout -- .` + `git clean -fd`) **before** the worktree creation is confirmed successful. If `CreateFromBranch` fails after reset, the WIP data exists only in the in-memory patch. See CF-8.
+**WIP handling:** With `--move-wip`, the source working tree is reset only **after** the new worktree is created and the patch is successfully applied. If any step fails before patch application, WIP is preserved in the source worktree (CF-8 resolved).
 
 ### State Repair: `grove repair`
 
@@ -522,46 +522,32 @@ Protection status comes from `config.toml` (`Protection.Protected` list), **not*
 
 ## Concerning Flows
 
-### CF-1: State File Race Condition
+### CF-1: State File Race Condition — MITIGATED
 
-**Severity:** MEDIUM
-**Files:** `internal/state/state.go` (lines 41-46, 247-264)
+**Severity:** MEDIUM → LOW
+**Files:** `internal/state/state.go`
 
-The state Manager uses an in-process `sync.RWMutex` to serialize access within a single process. However, there is no cross-process file locking (no `flock`, no lock file). Two concurrent grove commands modifying state can produce a lost-update scenario.
+**Resolution:** `save()` now acquires a cross-process file lock (`syscall.Flock` on `.grove/state.lock`) before writing, following the same pattern as `plugins/docker/slots.go`. The in-process `sync.RWMutex` remains for goroutine safety. The read-modify-write cycle is now protected at both the process and goroutine level.
 
-**Atomic write helps but doesn't prevent lost updates:** The `save()` method writes to `.tmp` then renames, which prevents partial writes. But the read-modify-write cycle is not atomic across processes: process A reads state, process B reads same state, A writes, B writes (overwriting A's changes).
+**Remaining caveat:** The lock protects writes but not the full read-modify-write cycle. A process that holds state in memory for an extended period before writing could still produce a stale write. In practice, grove commands complete quickly and this is unlikely.
 
-**Reproduction:**
-```bash
-# Terminal 1                    # Terminal 2
-grove new feature-a &           grove new feature-b &
-# Both read state, both write -- one write overwrites the other
-```
+### CF-2: Non-Transactional Multi-Step Operations — RESOLVED
 
-**Mitigation:** In practice, users rarely run concurrent grove commands. The `grove repair` command can fix resulting inconsistencies.
-
-### CF-2: Non-Transactional Multi-Step Operations
-
-**Severity:** HIGH
+**Severity:** HIGH → LOW
 **Files:** `cmd/grove/commands/new.go`, `cmd/grove/commands/fork.go`, `cmd/grove/commands/rm.go`
 
-Core commands perform multiple side effects (git worktree, state, tmux, hooks) without transaction boundaries. A failure partway through leaves the system in an inconsistent state.
+**Resolution:** Three changes reduce the impact of partial failures:
 
-**`grove new` failure modes:**
-1. Worktree created, state write fails -- orphan worktree with no state entry
-2. Worktree + state created, tmux fails -- functional but no tmux session
-3. Worktree + state + tmux created, hooks fail -- functional but hooks not applied
+1. **State errors surfaced:** `new.go` and `fork.go` no longer silently discard `AddWorktree()` errors — they print warnings with `grove repair` guidance. `rm.go` does the same for `RemoveWorktree()`.
 
-**`grove rm` failure modes:**
-1. Tmux session killed, worktree removal fails -- no tmux session, worktree still exists
-2. Tmux + worktree removed, state write fails -- orphan state entry
-3. Tmux + worktree + state removed, branch deletion fails -- stale branch remains
+2. **`grove rm` reordered:** Tmux session kill moved to after worktree removal. If `mgr.Remove()` fails, the user retains their tmux session and can investigate.
 
-**`grove fork` failure modes:**
-1. Branch created, worktree creation fails -- orphan branch (cleanup attempted: `git branch -D`)
-2. WIP moved (working tree reset), worktree creation fails -- **WIP data lost** (see CF-8)
+3. **`grove fork` WIP safe:** Source reset moved to after patch application (see CF-8).
 
-**Mitigation:** `grove repair` can detect and fix state/worktree/tmux mismatches. Branch orphans require manual cleanup.
+**Remaining failure modes** (acceptable):
+- Worktree created + state written, tmux fails → functional but no tmux session
+- Worktree + state + tmux created, hooks fail → functional but hooks not applied
+- `grove rm`: worktree + state removed, branch deletion fails → stale branch (manual cleanup)
 
 ### CF-3: Tmux/Worktree Desynchronization
 
@@ -577,31 +563,20 @@ Tmux session state is not persisted by grove -- it's queried live from tmux. Ses
 
 **Mitigation:** Sessions are created on demand during `grove to`. `grove repair` cleans orphan sessions.
 
-### CF-4: Last Session Tracking Non-Atomic Write
+### CF-4: Last Session Tracking Non-Atomic Write — RESOLVED
 
 **Severity:** LOW
-**Files:** `internal/tmux/session.go` (lines 206-218)
+**Files:** `internal/tmux/session.go`
 
-`StoreLastSession()` writes directly via `os.WriteFile()` to `~/.config/grove/last_session` without atomic write (no temp file + rename). A crash during write could leave a truncated file.
+**Resolution:** `StoreLastSession()` now uses temp file + `os.Rename()` for atomic writes, matching the pattern used in `state.Manager.save()`.
 
-**Reproduction:** Unlikely in practice -- the file is small (session name string) and writes are fast.
-
-**Mitigation:** The `last_session` file is advisory. A corrupted value would cause `grove last` to fail to find the session, which is a minor inconvenience.
-
-### CF-5: Config Protection Merge -- Whole-List Replacement
+### CF-5: Config Protection Merge — RESOLVED
 
 **Severity:** MEDIUM
-**Files:** `internal/config/config.go` (lines 258-263)
+**Files:** `internal/config/config.go`
 
-```go
-if len(override.Protection.Protected) > 0 {
-    result.Protection.Protected = override.Protection.Protected
-}
-```
+**Resolution:** Protection lists now use **deduplicated union** semantics via `deduplicatedUnion()`. Project-level protections are merged with global protections, preserving order and removing duplicates.
 
-When the project config defines a `protected` list, it **replaces** the global list entirely rather than merging/appending. This means a global config protecting `["main", "production"]` is silently overridden if the project config sets `protected = ["staging"]` -- `main` and `production` lose protection.
-
-**Reproduction:**
 ```toml
 # ~/.config/grove/config.toml
 [protection]
@@ -610,47 +585,20 @@ protected = ["main", "production"]
 # .grove/config.toml
 [protection]
 protected = ["staging"]
-# Result: only "staging" is protected. "main" and "production" are NOT.
+# Result: ["main", "production", "staging"] — all three are protected.
 ```
 
-**Contrast with hooks merge:** Hook actions use append semantics by default (with explicit override flags). Protection lists have no such mechanism.
-
-### CF-8: Fork WIP Data Loss
+### CF-8: Fork WIP Data Loss — RESOLVED
 
 **Severity:** HIGH
-**Files:** `cmd/grove/commands/fork.go` (lines 150-181)
+**Files:** `cmd/grove/commands/fork.go`
 
-With `--move-wip`, the current working tree is reset **before** the new worktree is created:
+**Resolution:** The destructive source reset (`git checkout -- .` + `git clean -fd`) was moved to **after** successful patch application. New sequence:
 
-```go
-// Line 153: Create patch from current changes
-wipPatch, err = wipHandler.CreatePatch()
+1. `CreatePatch()` — non-destructive
+2. Create branch
+3. Create worktree
+4. Apply patch to new worktree
+5. **Reset source** — only after patch applied successfully
 
-// Line 158-169: Reset IMMEDIATELY after patch creation
-if forkMoveWIP {
-    resetCmd := exec.Command("git", "-C", currentTree.Path, "checkout", "--", ".")
-    // ... + git clean -fd
-}
-
-// Line 174: Branch creation (could fail)
-createBranchCmd := exec.Command("git", "-C", currentTree.Path, "branch", newBranchName, baseRef)
-
-// Line 181: Worktree creation (could fail)
-if err := mgr.CreateFromBranch(name, newBranchName); err != nil {
-```
-
-If `CreateFromBranch` fails after the reset, the WIP changes exist only in the `wipPatch` byte slice (in memory). They are not recoverable -- the original working tree has been cleaned and the new worktree was never created.
-
-**The branch creation failure path does attempt cleanup** (deletes the branch) but does not restore WIP.
-
-**Reproduction:**
-```bash
-# Make changes in current worktree
-echo "important work" > new-file.txt
-# Fork with a name that will collide with an existing directory
-grove fork existing-name --move-wip
-# If the worktree directory already exists, CreateFromBranch fails
-# WIP is gone from both current and (non-existent) fork
-```
-
-**Safer alternative:** Create worktree first, then reset the source working tree only after confirming the new worktree exists and the patch was applied successfully.
+If any step before patch application fails, WIP is preserved in the source worktree. If the reset itself fails after a successful fork, the changes exist in both locations (safe). Reset errors are surfaced as warnings.

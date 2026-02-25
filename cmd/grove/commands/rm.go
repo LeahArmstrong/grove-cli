@@ -121,19 +121,6 @@ Examples:
 
 		projectName := mgr.GetProjectName()
 
-		// Kill tmux session if it exists
-		if tmux.IsTmuxAvailable() {
-			sessionName := worktree.TmuxSessionName(projectName, name)
-			exists, err := tmux.SessionExists(sessionName)
-			if err == nil && exists {
-				if err := tmux.KillSession(sessionName); err != nil {
-					fmt.Printf("⚠ Failed to kill tmux session: %v\n", err)
-				} else {
-					fmt.Printf("✓ Killed tmux session '%s'\n", sessionName)
-				}
-			}
-		}
-
 		// Get branch name before removing (need worktree info)
 		var branchName string
 		wt, _ := mgr.Find(name)
@@ -176,15 +163,30 @@ Examples:
 			fmt.Printf("⚠ Pre-remove plugin hook failed: %v\n", err)
 		}
 
-		// Remove worktree
+		// Remove worktree — the critical step, done before tmux kill
 		if err := mgr.Remove(name); err != nil {
 			return fmt.Errorf("failed to remove worktree: %w", err)
 		}
 
 		// Remove from state
-		_ = ctx.State.RemoveWorktree(name)
+		if err := ctx.State.RemoveWorktree(name); err != nil {
+			fmt.Printf("warning: worktree removed but state cleanup failed: %v\n", err)
+		}
 
 		fmt.Printf("✓ Removed worktree '%s'\n", name)
+
+		// Kill tmux session after worktree is confirmed gone
+		if tmux.IsTmuxAvailable() {
+			sessionName := worktree.TmuxSessionName(projectName, name)
+			exists, err := tmux.SessionExists(sessionName)
+			if err == nil && exists {
+				if err := tmux.KillSession(sessionName); err != nil {
+					fmt.Printf("⚠ Failed to kill tmux session: %v\n", err)
+				} else {
+					fmt.Printf("✓ Killed tmux session '%s'\n", sessionName)
+				}
+			}
+		}
 
 		// Handle branch deletion
 		if branchName != "" && !rmKeepBranch {
