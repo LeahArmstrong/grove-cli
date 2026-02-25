@@ -81,18 +81,18 @@ func TestContrastRatio(t *testing.T) {
 }
 
 func TestHighContrastScheme_MeetsWCAGAA(t *testing.T) {
-	scheme := HighContrastColorScheme()
+	p := HighContrastPairs
 	const minRatio = 4.5
 
-	fgColors := map[string]struct{ Dark, Light string }{
-		"Primary":    {scheme.Primary.Dark, scheme.Primary.Light},
-		"Success":    {scheme.Success.Dark, scheme.Success.Light},
-		"Warning":    {scheme.Warning.Dark, scheme.Warning.Light},
-		"Danger":     {scheme.Danger.Dark, scheme.Danger.Light},
-		"Info":       {scheme.Info.Dark, scheme.Info.Light},
-		"TextMuted":  {scheme.TextMuted.Dark, scheme.TextMuted.Light},
-		"TextNormal": {scheme.TextNormal.Dark, scheme.TextNormal.Light},
-		"TextBright": {scheme.TextBright.Dark, scheme.TextBright.Light},
+	fgColors := map[string]HighContrastPair{
+		"Primary":    p.Primary,
+		"Success":    p.Success,
+		"Warning":    p.Warning,
+		"Danger":     p.Danger,
+		"Info":       p.Info,
+		"TextMuted":  p.TextMuted,
+		"TextNormal": p.TextNormal,
+		"TextBright": p.TextBright,
 	}
 
 	for name, fg := range fgColors {
@@ -100,7 +100,7 @@ func TestHighContrastScheme_MeetsWCAGAA(t *testing.T) {
 			if _, _, _, err := HexToRGB(fg.Dark); err != nil {
 				t.Fatalf("%s dark color is invalid: %v", name, err)
 			}
-			ratio := ContrastRatio(fg.Dark, scheme.SurfaceBg.Dark)
+			ratio := ContrastRatio(fg.Dark, p.SurfaceBg.Dark)
 			if ratio < minRatio {
 				t.Errorf("%s dark: ratio %.2f < %.1f", name, ratio, minRatio)
 			}
@@ -109,7 +109,7 @@ func TestHighContrastScheme_MeetsWCAGAA(t *testing.T) {
 			if _, _, _, err := HexToRGB(fg.Light); err != nil {
 				t.Fatalf("%s light color is invalid: %v", name, err)
 			}
-			ratio := ContrastRatio(fg.Light, scheme.SurfaceBg.Light)
+			ratio := ContrastRatio(fg.Light, p.SurfaceBg.Light)
 			if ratio < minRatio {
 				t.Errorf("%s light: ratio %.2f < %.1f", name, ratio, minRatio)
 			}

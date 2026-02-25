@@ -75,7 +75,7 @@ Examples:
 					reason = "environment worktree"
 				}
 				cli.Error(stderr, "worktree '%s' is protected (%s)", name, reason)
-				fmt.Fprintf(os.Stderr, "To remove, use: grove rm %s --force --unprotect\n", name)
+				cli.Info(stderr, "To remove, use: grove rm %s --force --unprotect", name)
 				os.Exit(exitcode.CannotRemove)
 			}
 			if !rmDryRun {
@@ -89,26 +89,26 @@ Examples:
 			wt, _ := mgr.Find(name)
 			if wt != nil && currentTree.Path == wt.Path {
 				cli.Error(stderr, "cannot remove current worktree '%s'", name)
-				fmt.Fprintf(os.Stderr, "Switch to another worktree first: grove to <name>\n")
+				cli.Info(stderr, "Switch to another worktree first: grove to <name>")
 				os.Exit(exitcode.CannotRemove)
 			}
 		}
 
 		// Dry run - just show what would happen
 		if rmDryRun {
-			fmt.Printf("Would remove worktree '%s'\n", name)
+			cli.Info(w, "Would remove worktree '%s'", name)
 			// Get path from worktree manager
 			wt, _ := mgr.Find(name)
 			if wt != nil {
-				fmt.Printf("  Path: %s\n", wt.Path)
+				cli.Faint(w, "  Path: %s", wt.Path)
 				if wt.Branch != "" {
-					fmt.Printf("  Branch: %s\n", wt.Branch)
+					cli.Faint(w, "  Branch: %s", wt.Branch)
 					if rmDeleteBranch {
-						fmt.Printf("  Would delete branch: %s\n", wt.Branch)
+						cli.Faint(w, "  Would delete branch: %s", wt.Branch)
 					} else if rmKeepBranch {
-						fmt.Printf("  Would keep branch: %s\n", wt.Branch)
+						cli.Faint(w, "  Would keep branch: %s", wt.Branch)
 					} else {
-						fmt.Printf("  Would prompt for branch deletion\n")
+						cli.Faint(w, "  Would prompt for branch deletion")
 					}
 				}
 			}
@@ -116,26 +116,13 @@ Examples:
 				sessionName := worktree.TmuxSessionName(mgr.GetProjectName(), name)
 				exists, _ := tmux.SessionExists(sessionName)
 				if exists {
-					fmt.Printf("  Would kill tmux session: %s\n", sessionName)
+					cli.Faint(w, "  Would kill tmux session: %s", sessionName)
 				}
 			}
 			return nil
 		}
 
 		projectName := mgr.GetProjectName()
-
-		// Kill tmux session if it exists
-		if tmux.IsTmuxAvailable() {
-			sessionName := worktree.TmuxSessionName(projectName, name)
-			exists, err := tmux.SessionExists(sessionName)
-			if err == nil && exists {
-				if err := tmux.KillSession(sessionName); err != nil {
-					cli.Warning(w, "Failed to kill tmux session: %v", err)
-				} else {
-					cli.Success(w, "Killed tmux session '%s'", sessionName)
-				}
-			}
-		}
 
 		// Get branch name before removing (need worktree info)
 		var branchName string
@@ -179,15 +166,30 @@ Examples:
 			cli.Warning(w, "Pre-remove plugin hook failed: %v", err)
 		}
 
-		// Remove worktree
+		// Remove worktree — the critical step, done before tmux kill
 		if err := mgr.Remove(name); err != nil {
 			return fmt.Errorf("failed to remove worktree: %w", err)
 		}
 
 		// Remove from state
-		_ = ctx.State.RemoveWorktree(name)
+		if err := ctx.State.RemoveWorktree(name); err != nil {
+			cli.Warning(w, "worktree removed but state cleanup failed: %v", err)
+		}
 
 		cli.Success(w, "Removed worktree '%s'", name)
+
+		// Kill tmux session after worktree is confirmed gone
+		if tmux.IsTmuxAvailable() {
+			sessionName := worktree.TmuxSessionName(projectName, name)
+			exists, err := tmux.SessionExists(sessionName)
+			if err == nil && exists {
+				if err := tmux.KillSession(sessionName); err != nil {
+					cli.Warning(w, "Failed to kill tmux session: %v", err)
+				} else {
+					cli.Success(w, "Killed tmux session '%s'", sessionName)
+				}
+			}
+		}
 
 		// Handle branch deletion
 		if branchName != "" && !rmKeepBranch {
@@ -252,11 +254,11 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 	var details []string
 
 	if !status.IsMerged {
-		details = append(details, "⚠ Branch is not merged into default branch")
+		details = append(details, "Branch is not merged into default branch")
 	}
 
 	if status.UnpushedCount > 0 {
-		details = append(details, fmt.Sprintf("⚠ Has %d unpushed commit(s)", status.UnpushedCount))
+		details = append(details, fmt.Sprintf("Has %d unpushed commit(s)", status.UnpushedCount))
 
 		// Show commits
 		commits, _ := branchMgr.GetUnpushedCommits(branch, 5)
@@ -269,7 +271,7 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 	}
 
 	if status.IsMerged && status.UnpushedCount == 0 {
-		details = append(details, "✓ Branch is merged and safe to delete")
+		details = append(details, "Branch is merged and safe to delete")
 	}
 
 	header := fmt.Sprintf("Branch '%s':", branch)

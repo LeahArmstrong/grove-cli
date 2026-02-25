@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/key"
 )
 
 // KeyMap defines all keybindings for the TUI.
@@ -138,7 +138,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("n", "cancel"),
 		),
 		Toggle: key.NewBinding(
-			key.WithKeys(" "),
+			key.WithKeys("space"),
 			key.WithHelp("space", "toggle"),
 		),
 		All: key.NewBinding(

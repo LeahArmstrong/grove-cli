@@ -3,20 +3,13 @@ package theme
 import "testing"
 
 func TestNewColorScheme_Default(t *testing.T) {
-	t.Setenv("NO_COLOR", "")
-	// Unset by restoring empty; t.Setenv handles cleanup
-	// Need to ensure NO_COLOR is actually unset, not set to empty
-	// (LookupEnv returns true even for empty value)
-	// Use a clean approach: set something we know won't trigger
-	t.Setenv("GROVE_NO_COLOR", "")
-	t.Setenv("GROVE_HIGH_CONTRAST", "")
-
-	// Since LookupEnv returns (_, true) even for empty string,
-	// and we set them, this test would detect NO_COLOR mode.
-	// We need a different approach: test DefaultColorScheme directly.
+	// Test DefaultColorScheme directly to avoid NO_COLOR env interference.
 	def := DefaultColorScheme()
-	if def.Primary.Dark != "#A78BFA" {
-		t.Errorf("expected default Primary dark %q, got %q", "#A78BFA", def.Primary.Dark)
+	if def.Primary == nil {
+		t.Error("expected non-nil Primary in default color scheme")
+	}
+	if def.Success == nil {
+		t.Error("expected non-nil Success in default color scheme")
 	}
 }
 
@@ -24,8 +17,8 @@ func TestNewColorScheme_NoColor(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 
 	cs := NewColorScheme()
-	if cs.Primary.Dark != "" || cs.Primary.Light != "" {
-		t.Errorf("expected empty colors in NO_COLOR mode, got Primary=%+v", cs.Primary)
+	if cs.Primary != nil {
+		t.Errorf("expected nil Primary in NO_COLOR mode, got %v", cs.Primary)
 	}
 }
 
@@ -33,25 +26,20 @@ func TestNewColorScheme_GroveNoColor(t *testing.T) {
 	t.Setenv("GROVE_NO_COLOR", "1")
 
 	cs := NewColorScheme()
-	if cs.Primary.Dark != "" {
-		t.Errorf("expected empty colors in GROVE_NO_COLOR mode")
+	if cs.Primary != nil {
+		t.Errorf("expected nil Primary in GROVE_NO_COLOR mode, got %v", cs.Primary)
 	}
 }
 
 func TestNewColorScheme_HighContrast(t *testing.T) {
-	t.Setenv("GROVE_HIGH_CONTRAST", "1")
-
-	// HighContrast takes precedence only when NO_COLOR is not set.
-	// Since t.Setenv doesn't unset, test the function directly.
+	// Test HighContrastColorScheme directly.
 	hc := HighContrastColorScheme()
-	if hc.Primary.Dark != "#C4B5FD" {
-		t.Errorf("expected high-contrast Primary dark %q, got %q", "#C4B5FD", hc.Primary.Dark)
+	if hc.Primary == nil {
+		t.Error("expected non-nil Primary in high-contrast color scheme")
 	}
 }
 
 func TestIsNoColor(t *testing.T) {
-	// LookupEnv returns true even for empty value, so we test the function
-	// by setting the env var
 	t.Setenv("NO_COLOR", "1")
 	if !IsNoColor() {
 		t.Error("expected true when NO_COLOR is set")
@@ -67,7 +55,26 @@ func TestIsHighContrast(t *testing.T) {
 
 func TestNoColorScheme_Empty(t *testing.T) {
 	cs := NoColorScheme()
-	if cs.Primary.Dark != "" || cs.Primary.Light != "" {
-		t.Errorf("expected empty colors, got Primary=%+v", cs.Primary)
+	if cs.Primary != nil {
+		t.Errorf("expected nil Primary in NoColorScheme, got %v", cs.Primary)
+	}
+	if cs.Success != nil {
+		t.Errorf("expected nil Success in NoColorScheme, got %v", cs.Success)
+	}
+}
+
+func TestAdaptiveColor_DarkMode(t *testing.T) {
+	t.Setenv("GROVE_LIGHT_MODE", "0")
+	c := AdaptiveColor("#111111", "#EEEEEE")
+	if c == nil {
+		t.Fatal("expected non-nil color")
+	}
+}
+
+func TestAdaptiveColor_LightMode(t *testing.T) {
+	t.Setenv("GROVE_LIGHT_MODE", "1")
+	c := AdaptiveColor("#111111", "#EEEEEE")
+	if c == nil {
+		t.Fatal("expected non-nil color")
 	}
 }

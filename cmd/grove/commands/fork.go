@@ -136,7 +136,7 @@ Examples:
 					"Cancel",
 				})
 				if err != nil {
-					fmt.Println("Cancelled")
+					cli.Info(w, "Cancelled")
 					os.Exit(exitcode.UserCancelled)
 				}
 
@@ -148,30 +148,17 @@ Examples:
 				case "Leave in current":
 					forkNoWIP = true
 				case "Cancel":
-					fmt.Println("Cancelled")
+					cli.Info(w, "Cancelled")
 					os.Exit(exitcode.UserCancelled)
 				}
 			}
 
-			// Execute WIP handling
+			// Execute WIP handling - create patch only; reset deferred until after fork succeeds
 			if forkMoveWIP || forkCopyWIP {
 				// Create patch from current changes
 				wipPatch, err = wipHandler.CreatePatch()
 				if err != nil {
 					return fmt.Errorf("failed to capture changes: %w", err)
-				}
-
-				if forkMoveWIP {
-					// Reset current working tree (changes will be applied to fork)
-					resetCmd := exec.Command("git", "-C", currentTree.Path, "checkout", "--", ".")
-					if output, err := resetCmd.CombinedOutput(); err != nil {
-						return fmt.Errorf("failed to reset working tree: %w\n%s", err, output)
-					}
-					// Clean untracked files
-					cleanCmd := exec.Command("git", "-C", currentTree.Path, "clean", "-fd")
-					if output, err := cleanCmd.CombinedOutput(); err != nil {
-						return fmt.Errorf("failed to clean untracked files: %w\n%s", err, output)
-					}
 				}
 			}
 		}
@@ -206,11 +193,23 @@ Examples:
 			newWipHandler := worktree.NewWIPHandler(newTree.Path)
 			if err := newWipHandler.ApplyPatch(wipPatch); err != nil {
 				cli.Warning(w, "Failed to apply changes to fork: %v", err)
+				cli.Warning(w, "Changes are preserved in the source worktree")
 			} else {
-				if forkMoveWIP {
-					cli.Success(w, "Moved uncommitted changes to fork")
-				} else {
+				if forkCopyWIP {
 					cli.Success(w, "Copied uncommitted changes to fork")
+				}
+				// Reset source worktree only after successful patch application
+				if forkMoveWIP {
+					resetCmd := exec.Command("git", "-C", currentTree.Path, "checkout", "--", ".")
+					if output, err := resetCmd.CombinedOutput(); err != nil {
+						cli.Warning(w, "changes applied to fork but failed to reset source: %v\n%s", err, output)
+					} else {
+						cleanCmd := exec.Command("git", "-C", currentTree.Path, "clean", "-fd")
+						if output, err := cleanCmd.CombinedOutput(); err != nil {
+							cli.Warning(w, "failed to clean untracked files in source: %v\n%s", err, output)
+						}
+						cli.Success(w, "Moved uncommitted changes to fork")
+					}
 				}
 			}
 		}
@@ -224,7 +223,10 @@ Examples:
 			LastAccessedAt: now,
 			ParentWorktree: parentName,
 		}
-		_ = ctx.State.AddWorktree(name, wsState)
+		if err := ctx.State.AddWorktree(name, wsState); err != nil {
+			cli.Warning(w, "worktree created but state tracking failed: %v", err)
+			cli.Info(w, "run 'grove repair' to fix")
+		}
 
 		// Fire post-create hook
 		hookCtx := &hooks.Context{

@@ -6,9 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
@@ -43,10 +42,10 @@ type ForkState struct {
 	HasWIP      bool
 	WIPFiles    []string
 	WIPChoice   string // persists WIP form selection across back navigation
+	WIPCursor   int    // cursor for WIP strategy selection
 	Err         error
 	Forking     bool
 	Stepper     *Stepper
-	Form        *huh.Form // active Huh form (name input or WIP choice)
 }
 
 // NewForkState creates a new ForkState for the given source worktree.
@@ -185,42 +184,8 @@ func forkWorktreeCmd(mgr *worktree.Manager, stateMgr *state.Manager, forkState *
 	}
 }
 
-// NewForkNameForm creates a Huh form for the fork name input.
-func NewForkNameForm(nameValue *string, projectName string, existingItems []WorktreeItem) *huh.Form {
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Fork Name").
-				Placeholder("feature-name").
-				Validate(createNameValidator(existingItems, "")).
-				Value(nameValue),
-		),
-	).WithTheme(huh.ThemeCharm()).WithShowHelp(false).WithAccessible(isHighContrast())
-
-	return form
-}
-
-// NewForkWIPForm creates a Huh form for selecting WIP strategy.
-func NewForkWIPForm(strategy *string) *huh.Form {
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Handle Uncommitted Changes").
-				Description("How should uncommitted changes be handled?").
-				Options(
-					huh.NewOption("Move to fork (current becomes clean)", "move"),
-					huh.NewOption("Copy to fork (keep in both)", "copy"),
-					huh.NewOption("Leave in current (fork starts clean)", "leave"),
-				).
-				Value(strategy),
-		),
-	).WithTheme(huh.ThemeCharm()).WithShowHelp(false).WithAccessible(isHighContrast())
-
-	return form
-}
-
 // handleForkKey handles key input for the fork overlay.
-func (m Model) handleForkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleForkKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.forkState == nil {
 		m.activeView = ViewDashboard
 		return m, nil
@@ -234,77 +199,84 @@ func (m Model) handleForkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch s.Step {
 	case ForkStepName:
-		if key.Matches(msg, m.keys.Escape) {
+		switch {
+		case key.Matches(msg, m.keys.Escape):
 			m.activeView = ViewDashboard
 			m.forkState = nil
 			return m, nil
-		}
-		if s.Form == nil {
-			// Initialize form on first key
-			s.Form = NewForkNameForm(&s.Name, m.projectName, m.existingWorktreeItems())
-			return m, s.Form.Init()
-		}
-		model, cmd := s.Form.Update(msg)
-		s.Form = model.(*huh.Form)
-
-		if s.Form.State == huh.StateAborted {
-			m.activeView = ViewDashboard
-			m.forkState = nil
-			return m, nil
-		}
-		if s.Form.State == huh.StateCompleted {
+		case key.Matches(msg, m.keys.Enter):
+			if s.Name == "" {
+				s.Err = fmt.Errorf("name cannot be empty")
+				return m, nil
+			}
+			if errMsg := ValidateWorktreeName(s.Name); errMsg != "" {
+				s.Err = fmt.Errorf("%s", errMsg)
+				return m, nil
+			}
+			// Check for duplicates
+			for _, item := range m.existingWorktreeItems() {
+				if item.ShortName == s.Name {
+					s.Err = fmt.Errorf("worktree %q already exists", s.Name)
+					return m, nil
+				}
+			}
+			s.Err = nil
 			if s.HasWIP {
 				s.Step = ForkStepWIP
 				s.Stepper.Current = 1
-				s.Form = NewForkWIPForm(&s.WIPChoice)
-				return m, s.Form.Init()
+				return m, nil
 			}
 			s.Step = ForkStepConfirm
 			s.Stepper.Current = 2
-			s.Form = nil
+			return m, nil
+		case msg.Code == tea.KeyBackspace:
+			if len(s.Name) > 0 {
+				s.Name = s.Name[:len(s.Name)-1]
+				s.Err = nil
+			}
+			return m, nil
+		case isPrintableText(msg.Text):
+			s.Name += msg.Text
+			s.Err = nil
 			return m, nil
 		}
-		return m, cmd
 
 	case ForkStepWIP:
-		if key.Matches(msg, m.keys.Escape) {
+		switch {
+		case key.Matches(msg, m.keys.Escape):
 			m.activeView = ViewDashboard
 			m.forkState = nil
 			return m, nil
-		}
-		if key.Matches(msg, m.keys.Back) {
+		case key.Matches(msg, m.keys.Back):
 			s.Step = ForkStepName
 			s.Stepper.Current = 0
-			s.Form = NewForkNameForm(&s.Name, m.projectName, m.existingWorktreeItems())
-			return m, s.Form.Init()
-		}
-		if s.Form == nil {
 			return m, nil
-		}
-		model, cmd := s.Form.Update(msg)
-		s.Form = model.(*huh.Form)
-
-		if s.Form.State == huh.StateAborted {
-			m.activeView = ViewDashboard
-			m.forkState = nil
+		case key.Matches(msg, m.keys.Up):
+			if s.WIPCursor > 0 {
+				s.WIPCursor--
+			}
 			return m, nil
-		}
-		if s.Form.State == huh.StateCompleted {
-			// Extract WIP strategy from form value
-			switch {
-			case strings.Contains(s.WIPChoice, "move") || s.WIPChoice == "move":
+		case key.Matches(msg, m.keys.Down):
+			if s.WIPCursor < 2 {
+				s.WIPCursor++
+			}
+			return m, nil
+		case key.Matches(msg, m.keys.Enter):
+			switch s.WIPCursor {
+			case 0:
 				s.WIPStrategy = WIPMove
-			case strings.Contains(s.WIPChoice, "copy") || s.WIPChoice == "copy":
+				s.WIPChoice = "move"
+			case 1:
 				s.WIPStrategy = WIPCopy
-			default:
+				s.WIPChoice = "copy"
+			case 2:
 				s.WIPStrategy = WIPLeave
+				s.WIPChoice = "leave"
 			}
 			s.Step = ForkStepConfirm
 			s.Stepper.Current = 2
-			s.Form = nil
 			return m, nil
 		}
-		return m, cmd
 
 	case ForkStepConfirm:
 		switch {
@@ -317,13 +289,11 @@ func (m Model) handleForkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if s.HasWIP {
 				s.Step = ForkStepWIP
 				s.Stepper.Current = 1
-				s.Form = NewForkWIPForm(&s.WIPChoice)
-				return m, s.Form.Init()
+				return m, nil
 			}
 			s.Step = ForkStepName
 			s.Stepper.Current = 0
-			s.Form = NewForkNameForm(&s.Name, m.projectName, m.existingWorktreeItems())
-			return m, s.Form.Init()
+			return m, nil
 
 		case key.Matches(msg, m.keys.Enter):
 			if m.worktreeMgr == nil || m.stateMgr == nil {
@@ -335,17 +305,6 @@ func (m Model) handleForkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
-}
-
-// forwardToForkHuhForm forwards non-key messages to the active fork Huh form.
-func (m Model) forwardToForkHuhForm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	s := m.forkState
-	if s.Form == nil {
-		return m, nil
-	}
-	model, cmd := s.Form.Update(msg)
-	s.Form = model.(*huh.Form)
-	return m, cmd
 }
 
 // renderFork renders the fork overlay.
@@ -387,9 +346,8 @@ func renderFork(s *ForkState, width int) string {
 		b.WriteString(indent + Styles.DetailLabel.Render("Source: ") + Styles.DetailValue.Render(s.Source.ShortName) + "\n")
 		b.WriteString(indent + Styles.DetailLabel.Render("Branch: ") + Styles.DetailValue.Render(s.Source.Branch) + "\n\n")
 
-		if s.Form != nil {
-			b.WriteString(s.Form.View())
-		}
+		// Manual name input
+		b.WriteString(indent + "Fork Name: " + fmt.Sprintf("%s█\n", s.Name))
 		b.WriteString("\n" + Styles.Footer.Render(indent+"[enter] next  [esc] cancel"))
 
 	case ForkStepWIP:
@@ -398,8 +356,19 @@ func renderFork(s *ForkState, width int) string {
 		b.WriteString(indent + Styles.DetailLabel.Render("Name:   ") + Styles.DetailValue.Render(s.Name) + "\n")
 		b.WriteString(indent + Styles.DetailLabel.Render("WIP:    ") + Styles.WarningText.Render(fmt.Sprintf("%d files changed", len(s.WIPFiles))) + "\n\n")
 
-		if s.Form != nil {
-			b.WriteString(s.Form.View())
+		// Manual WIP strategy selector
+		b.WriteString(indent + "Handle Uncommitted Changes\n\n")
+		wipOptions := []string{
+			"Move to fork (current becomes clean)",
+			"Copy to fork (keep in both)",
+			"Leave in current (fork starts clean)",
+		}
+		for i, opt := range wipOptions {
+			cursor := "  "
+			if i == s.WIPCursor {
+				cursor = Styles.ListCursor.Render("❯ ")
+			}
+			b.WriteString(indent + cursor + opt + "\n")
 		}
 		b.WriteString("\n" + Styles.Footer.Render(indent+"[enter] next  [backspace] back  [esc] cancel"))
 

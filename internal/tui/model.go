@@ -2,18 +2,18 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/git"
@@ -475,8 +475,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(spinnerCmds...)
 
-	case tea.KeyMsg:
-		tuilog.Printf("KeyMsg: type=%d string=%q runes=%v", msg.Type, msg.String(), msg.Runes)
+	case tea.KeyPressMsg:
+		tuilog.Printf("KeyMsg: code=%d string=%q text=%q", msg.Code, msg.String(), msg.Text)
 		// Overlays capture all input
 		if m.activeView != ViewDashboard {
 			return m.handleKey(msg)
@@ -496,18 +496,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 
 	default:
-		// Forward messages to active Huh form when in create view
-		if m.activeView == ViewCreate && m.createState != nil && m.createState.UseHuhForms {
-			return m.forwardToActiveHuhForm(msg)
-		}
-		// Forward messages to active Huh form when in fork view
-		if m.activeView == ViewFork && m.forkState != nil && m.forkState.Form != nil {
-			return m.forwardToForkHuhForm(msg)
-		}
-		// Forward messages to active Huh form when in config view
-		if m.activeView == ViewConfig && m.configState != nil && m.configState.Editing && m.configState.EditForm != nil {
-			return m.forwardToConfigHuhForm(msg)
-		}
 		// Forward unhandled messages to the list so it can process
 		// internal messages (e.g. filter match results from fuzzy search).
 		var cmd tea.Cmd
@@ -538,8 +526,8 @@ func (m *Model) updateLayout() {
 		dividerWidth := 3 // " │ "
 		detailWidth := contentWidth - listWidth - dividerWidth
 		m.list.SetSize(listWidth, available-listHeaderHeight)
-		m.detail.Width = detailWidth
-		m.detail.Height = available
+		m.detail.SetWidth(detailWidth)
+		m.detail.SetHeight(available)
 	} else {
 		// Stacked: cap list height at item count * row height + padding
 		itemCount := len(m.list.Items())
@@ -558,13 +546,13 @@ func (m *Model) updateLayout() {
 			detailHeight = 3
 		}
 		m.list.SetSize(contentWidth, listHeight)
-		m.detail.Width = contentWidth
-		m.detail.Height = detailHeight
+		m.detail.SetWidth(contentWidth)
+		m.detail.SetHeight(detailHeight)
 	}
 
 	m.computeColumnWidths()
 
-	m.help.Width = contentWidth
+	m.help.SetWidth(contentWidth)
 }
 
 // computeColumnWidths scans list items to find max name/branch lengths,
@@ -587,7 +575,7 @@ func (m *Model) updateDetailContent() {
 		m.detail.SetContent("")
 		return
 	}
-	content := renderDetailV2(&item, m.detail.Width)
+	content := renderDetailV2(&item, m.detail.Width())
 	m.detail.SetContent(content)
 	m.detail.GotoTop()
 }
@@ -613,7 +601,7 @@ func (m Model) selectedItem() (WorktreeItem, bool) {
 	return item, ok
 }
 
-func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.activeView {
 	case ViewHelp:
 		m.activeView = ViewDashboard
@@ -640,7 +628,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keys.Quit):
 		return m, tea.Quit
@@ -665,7 +653,6 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.createState = &CreateState{
 			Step:        CreateStepBranch,
 			ProjectName: m.projectName,
-			UseHuhForms: true,
 			Branches:    branches,
 		}
 		return m, nil
@@ -729,8 +716,9 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Quick-switch: number keys 1-9 jump to nth visible item
 	// Disabled when the list has an active filter to avoid switching to hidden items
-	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && m.list.FilterState() == list.Unfiltered {
-		r := msg.Runes[0]
+	runes := []rune(msg.Text)
+	if len(runes) == 1 && m.list.FilterState() == list.Unfiltered {
+		r := runes[0]
 		if r >= '1' && r <= '9' {
 			idx := int(r - '1')
 			items := m.list.Items()
@@ -758,7 +746,7 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) handleDeleteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleDeleteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.deleteState == nil {
 		m.activeView = ViewDashboard
 		return m, nil
@@ -787,20 +775,13 @@ func (m Model) handleDeleteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleCreateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleCreateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.createState == nil {
 		m.activeView = ViewDashboard
 		return m, nil
 	}
 
-	s := m.createState
-
-	// Delegate to Huh forms when enabled
-	if s.UseHuhForms {
-		return m.handleCreateKeyHuh(msg)
-	}
-
-	switch s.Step {
+	switch m.createState.Step {
 	case CreateStepBranch:
 		return m.handleBranchSelectorKey(msg)
 	case CreateStepBranchAction:
@@ -814,81 +795,8 @@ func (m Model) handleCreateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleCreateKeyHuh handles create wizard input using Huh forms.
-func (m Model) handleCreateKeyHuh(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	s := m.createState
-
-	switch s.Step {
-	case CreateStepBranch:
-		return m.handleBranchSelectorKey(msg)
-
-	case CreateStepBranchAction:
-		return m.handleBranchActionKey(msg)
-
-	case CreateStepName:
-		if key.Matches(msg, m.keys.Escape) {
-			m.activeView = ViewDashboard
-			m.createState = nil
-			return m, nil
-		}
-		// Intercept backspace to go back to Branch step before Huh consumes it
-		if key.Matches(msg, m.keys.Back) {
-			s.Step = CreateStepBranch
-			return m, nil
-		}
-		if s.NameForm == nil {
-			return m, nil
-		}
-		model, cmd := s.NameForm.Update(msg)
-		s.NameForm = model.(*huh.Form)
-
-		if s.NameForm.State == huh.StateAborted {
-			m.activeView = ViewDashboard
-			m.createState = nil
-			return m, nil
-		}
-		return m.checkCreateFormCompletion(cmd)
-
-	case CreateStepConfirm:
-		return m.handleConfirmKey(msg)
-	}
-
-	return m, nil
-}
-
-// forwardToActiveHuhForm forwards non-key messages to the active Huh form.
-func (m Model) forwardToActiveHuhForm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	s := m.createState
-	if s.Step != CreateStepName || s.NameForm == nil {
-		return m, nil
-	}
-	model, cmd := s.NameForm.Update(msg)
-	s.NameForm = model.(*huh.Form)
-
-	// Check if the async update completed the form (e.g. Enter key result)
-	return m.checkCreateFormCompletion(cmd)
-}
-
-// checkCreateFormCompletion checks if the current Huh form has completed
-// and transitions to the next step. Called after both key and non-key updates.
-func (m Model) checkCreateFormCompletion(cmd tea.Cmd) (tea.Model, tea.Cmd) {
-	s := m.createState
-
-	if s.Step == CreateStepName && s.NameForm != nil && s.NameForm.State == huh.StateCompleted {
-		// Use suggestion if name is empty
-		if s.Name == "" && s.NameSuggestion != "" {
-			s.Name = s.NameSuggestion
-		}
-		s.Error = ""
-		s.Step = CreateStepConfirm
-		return m, nil
-	}
-
-	return m, cmd
-}
-
 // handleBranchActionKey handles the branch action step (split vs fork).
-func (m Model) handleBranchActionKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleBranchActionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := m.createState
 	switch {
 	case key.Matches(msg, m.keys.Escape):
@@ -936,17 +844,13 @@ func (m Model) handleBranchActionKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		// Proceed to Name step
 		s.Step = CreateStepName
-		if s.UseHuhForms {
-			s.NameForm = NewCreateNameForm(&s.Name, s.ProjectName, m.existingWorktreeItems(), s.NameSuggestion)
-			return m, s.NameForm.Init()
-		}
 		return m, nil
 	}
 	return m, nil
 }
 
 // handleConfirmKey handles the confirmation step key input.
-func (m Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := m.createState
 	switch {
 	case key.Matches(msg, m.keys.Escape):
@@ -956,10 +860,6 @@ func (m Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.Back):
 		s.Step = CreateStepName
-		if s.UseHuhForms {
-			s.NameForm = NewCreateNameForm(&s.Name, s.ProjectName, m.existingWorktreeItems(), s.NameSuggestion)
-			return m, s.NameForm.Init()
-		}
 		return m, nil
 
 	case key.Matches(msg, m.keys.Enter):
@@ -978,7 +878,7 @@ func (m *Model) startCreate(name, baseBranch string) (tea.Model, tea.Cmd) {
 }
 
 // handleBranchSelectorKey handles the unified branch selector step.
-func (m Model) handleBranchSelectorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleBranchSelectorKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := m.createState
 
 	filtered := filteredBranches(s.Branches, s.BranchFilter)
@@ -1029,10 +929,6 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					s.BaseBranch = ""
 				}
 				s.Step = CreateStepName
-				if s.UseHuhForms {
-					s.NameForm = NewCreateNameForm(&s.Name, s.ProjectName, m.existingWorktreeItems(), s.NameSuggestion)
-					return m, s.NameForm.Init()
-				}
 				return m, nil
 			}
 
@@ -1046,23 +942,19 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			s.NewBranchName = s.BranchFilter
 			s.NameSuggestion = s.BranchFilter
 			s.Step = CreateStepName
-			if s.UseHuhForms {
-				s.NameForm = NewCreateNameForm(&s.Name, s.ProjectName, m.existingWorktreeItems(), s.NameSuggestion)
-				return m, s.NameForm.Init()
-			}
 			return m, nil
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyBackspace:
+	case msg.Code == tea.KeyBackspace:
 		if len(s.BranchFilter) > 0 {
 			s.BranchFilter = s.BranchFilter[:len(s.BranchFilter)-1]
 			s.BranchCursor = 0
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyRunes:
-		s.BranchFilter += string(msg.Runes)
+	case isPrintableText(msg.Text):
+		s.BranchFilter += msg.Text
 		s.BranchCursor = 0
 		return m, nil
 	}
@@ -1071,7 +963,7 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleNameKey handles the name step key input (non-Huh path).
-func (m Model) handleNameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleNameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := m.createState
 
 	switch {
@@ -1110,7 +1002,7 @@ func (m Model) handleNameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		s.Step = CreateStepConfirm
 		return m, nil
 
-	case msg.Type == tea.KeyBackspace:
+	case msg.Code == tea.KeyBackspace:
 		if len(s.Name) > 0 {
 			s.Name = s.Name[:len(s.Name)-1]
 			s.Error = ""
@@ -1118,8 +1010,8 @@ func (m Model) handleNameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyRunes:
-		s.Name += string(msg.Runes)
+	case isPrintableText(msg.Text):
+		s.Name += msg.Text
 		if errMsg := ValidateWorktreeName(s.Name); errMsg != "" {
 			s.Error = errMsg
 		} else {
@@ -1183,7 +1075,7 @@ func (m Model) enterBulkMode() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleBulkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleBulkKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.bulkState == nil {
 		m.activeView = ViewDashboard
 		return m, nil
@@ -1246,7 +1138,13 @@ func (m Model) bulkDeleteCmd(items []WorktreeItem) tea.Cmd {
 	}
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	v := tea.NewView(m.viewContent())
+	v.AltScreen = true
+	return v
+}
+
+func (m Model) viewContent() string {
 	if !m.ready {
 		tuilog.Printf("View: not ready")
 		// For PR/Issue views launched directly, render a loading overlay
@@ -1421,7 +1319,7 @@ func (m Model) selectedItemName() string {
 }
 
 // renderVerticalDivider creates a thin column of │ characters for side-by-side layout.
-func renderVerticalDivider(height int, color lipgloss.AdaptiveColor) string {
+func renderVerticalDivider(height int, color color.Color) string {
 	style := lipgloss.NewStyle().Foreground(color).Padding(0, 1)
 	lines := make([]string, height)
 	for i := range lines {
@@ -1659,7 +1557,7 @@ func (m *Model) handleTmuxSwitch(switchPath string) bool {
 func runModel(model Model) (string, error) {
 	tuilog.Printf("runModel: projectRoot=%s activeView=%d", model.projectRoot, model.activeView)
 
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	finalModel, err := p.Run()
 	if err != nil {

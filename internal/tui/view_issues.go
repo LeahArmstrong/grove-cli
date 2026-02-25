@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
@@ -44,7 +44,7 @@ func (m Model) fetchIssuesCmd() tea.Msg {
 	return issuesFetchedMsg{issues: issues, err: err}
 }
 
-func (m Model) handleIssueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleIssueKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.issueState == nil {
 		m.activeView = ViewDashboard
 		return m, nil
@@ -95,15 +95,15 @@ func (m Model) handleIssueKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyBackspace:
+	case msg.Code == tea.KeyBackspace:
 		if len(s.Filter) > 0 {
 			s.Filter = s.Filter[:len(s.Filter)-1]
 			s.Cursor = 0
 		}
 		return m, nil
 
-	case msg.Type == tea.KeyRunes:
-		s.Filter += string(msg.Runes)
+	case isPrintableText(msg.Text):
+		s.Filter += msg.Text
 		s.Cursor = 0
 		return m, nil
 	}
@@ -234,7 +234,7 @@ func renderIssueView(s *IssueViewState, width int, spinnerView string) string {
 
 			cursor := "  "
 			if i == s.Cursor {
-				cursor = Styles.ListCursor.String()
+				cursor = Styles.ListCursor.Render("❯ ")
 			}
 
 			// Line 1: cursor + #number + title

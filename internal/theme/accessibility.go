@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 // HexToRGB parses a hex color string like "#FF00AA" into RGB components.
@@ -52,34 +50,71 @@ func ContrastRatio(fg, bg string) float64 {
 	return (l1 + 0.05) / (l2 + 0.05)
 }
 
-// highContrastColorScheme returns a ColorScheme with higher contrast values.
+// HighContrastPair holds the dark and light hex values for a single color slot.
+type HighContrastPair struct {
+	Dark  string
+	Light string
+}
+
+// HighContrastPairs exposes the raw hex values used by HighContrastColorScheme
+// so callers can verify contrast ratios against both dark and light backgrounds.
+var HighContrastPairs = struct {
+	Primary    HighContrastPair
+	Secondary  HighContrastPair
+	Success    HighContrastPair
+	Warning    HighContrastPair
+	Danger     HighContrastPair
+	Info       HighContrastPair
+	SurfaceBg  HighContrastPair
+	SurfaceFg  HighContrastPair
+	SurfaceDim HighContrastPair
+	TextNormal HighContrastPair
+	TextBright HighContrastPair
+	TextMuted  HighContrastPair
+}{
+	Primary:    HighContrastPair{Dark: "#C4B5FD", Light: "#6D28D9"},
+	Secondary:  HighContrastPair{Dark: "#7DD3FC", Light: "#0369A1"},
+	Success:    HighContrastPair{Dark: "#6EE7B7", Light: "#047857"},
+	Warning:    HighContrastPair{Dark: "#FDE68A", Light: "#B45309"},
+	Danger:     HighContrastPair{Dark: "#FCA5A5", Light: "#B91C1C"},
+	Info:       HighContrastPair{Dark: "#93C5FD", Light: "#1D4ED8"},
+	SurfaceBg:  HighContrastPair{Dark: "#1E1E2E", Light: "#FFFFFF"},
+	SurfaceFg:  HighContrastPair{Dark: "#E4E8F7", Light: "#0F172A"},
+	SurfaceDim: HighContrastPair{Dark: "#7F849C", Light: "#64748B"},
+	TextNormal: HighContrastPair{Dark: "#E4E8F7", Light: "#0F172A"},
+	TextBright: HighContrastPair{Dark: "#FFFFFF", Light: "#000000"},
+	TextMuted:  HighContrastPair{Dark: "#A6ADC8", Light: "#475569"},
+}
+
+// HighContrastColorScheme returns a ColorScheme with higher contrast values.
 // All foreground colors are adjusted to meet WCAG AA (4.5:1) against both
 // dark and light backgrounds, including TextMuted which is normally exempt.
 func HighContrastColorScheme() ColorScheme {
+	p := HighContrastPairs
 	return ColorScheme{
 		// Brand — brighter for dark, darker for light
-		Primary:   lipgloss.AdaptiveColor{Dark: "#C4B5FD", Light: "#6D28D9"},
-		Secondary: lipgloss.AdaptiveColor{Dark: "#7DD3FC", Light: "#0369A1"},
+		Primary:   AdaptiveColor(p.Primary.Dark, p.Primary.Light),
+		Secondary: AdaptiveColor(p.Secondary.Dark, p.Secondary.Light),
 
 		// Status — pushed to higher contrast
-		Success: lipgloss.AdaptiveColor{Dark: "#6EE7B7", Light: "#047857"},
-		Warning: lipgloss.AdaptiveColor{Dark: "#FDE68A", Light: "#B45309"},
-		Danger:  lipgloss.AdaptiveColor{Dark: "#FCA5A5", Light: "#B91C1C"},
-		Info:    lipgloss.AdaptiveColor{Dark: "#93C5FD", Light: "#1D4ED8"},
+		Success: AdaptiveColor(p.Success.Dark, p.Success.Light),
+		Warning: AdaptiveColor(p.Warning.Dark, p.Warning.Light),
+		Danger:  AdaptiveColor(p.Danger.Dark, p.Danger.Light),
+		Info:    AdaptiveColor(p.Info.Dark, p.Info.Light),
 
 		// Surface — same as default (backgrounds)
-		SurfaceBg:     lipgloss.AdaptiveColor{Dark: "#1E1E2E", Light: "#FFFFFF"},
-		SurfaceFg:     lipgloss.AdaptiveColor{Dark: "#E4E8F7", Light: "#0F172A"},
-		SurfaceDim:    lipgloss.AdaptiveColor{Dark: "#7F849C", Light: "#64748B"},
-		SurfaceBorder: lipgloss.AdaptiveColor{Dark: "#585B70", Light: "#94A3B8"},
+		SurfaceBg:     AdaptiveColor(p.SurfaceBg.Dark, p.SurfaceBg.Light),
+		SurfaceFg:     AdaptiveColor(p.SurfaceFg.Dark, p.SurfaceFg.Light),
+		SurfaceDim:    AdaptiveColor(p.SurfaceDim.Dark, p.SurfaceDim.Light),
+		SurfaceBorder: AdaptiveColor("#585B70", "#94A3B8"),
 
 		// Selection / Header
-		SelectionBg: lipgloss.AdaptiveColor{Dark: "#313244", Light: "#E2E8F0"},
-		HeaderBg:    lipgloss.AdaptiveColor{Dark: "#181825", Light: "#F1F5F9"},
+		SelectionBg: AdaptiveColor("#313244", "#E2E8F0"),
+		HeaderBg:    AdaptiveColor("#181825", "#F1F5F9"),
 
 		// Text — all meet 4.5:1 including muted
-		TextNormal: lipgloss.AdaptiveColor{Dark: "#E4E8F7", Light: "#0F172A"},
-		TextBright: lipgloss.AdaptiveColor{Dark: "#FFFFFF", Light: "#000000"},
-		TextMuted:  lipgloss.AdaptiveColor{Dark: "#A6ADC8", Light: "#475569"},
+		TextNormal: AdaptiveColor(p.TextNormal.Dark, p.TextNormal.Light),
+		TextBright: AdaptiveColor(p.TextBright.Dark, p.TextBright.Light),
+		TextMuted:  AdaptiveColor(p.TextMuted.Dark, p.TextMuted.Light),
 	}
 }

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/theme"
 )
@@ -49,11 +49,11 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m spinnerModel) View() string {
+func (m spinnerModel) View() tea.View {
 	if m.done {
-		return ""
+		return tea.NewView("")
 	}
-	return fmt.Sprintf("%s %s", m.spinner.View(), m.message)
+	return tea.NewView(fmt.Sprintf("%s %s", m.spinner.View(), m.message))
 }
 
 // Spin shows a spinner on stderr while fn executes.

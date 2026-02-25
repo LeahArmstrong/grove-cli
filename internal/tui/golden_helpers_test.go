@@ -8,6 +8,10 @@ import (
 	"github.com/LeahArmstrong/grove-cli/plugins/tracker"
 )
 
+// viewString extracts the View() output as a string.
+// In v2, View() returns tea.View, so we extract the content string.
+func (m Model) viewString() string { return m.viewContent() }
+
 // goldenMu serializes golden tests that mutate the global Colors/Styles vars.
 // Golden tests must NOT use t.Parallel().
 var goldenMu sync.Mutex
@@ -53,7 +57,7 @@ func goldenModel(t *testing.T, size termSize, opts ...testOpt) Model {
 }
 
 // goldenModelThemed creates a test model with full color output for themed golden tests.
-// Uses defaultColorScheme() directly to avoid terminal-dependent AdaptiveColor resolution.
+// Uses defaultColorScheme() directly for deterministic color output.
 func goldenModelThemed(t *testing.T, size termSize, opts ...testOpt) Model {
 	t.Helper()
 
@@ -92,7 +96,6 @@ func withCreateStep(step CreateStep) testOpt {
 		m.activeView = ViewCreate
 		m.createState = &CreateState{
 			Step:        step,
-			UseHuhForms: false,
 			Branches:    []string{"main", "develop", "feature/auth", "fix/login-bug", "release/v2"},
 			ProjectName: m.projectName,
 		}

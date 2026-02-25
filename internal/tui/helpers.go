@@ -1,6 +1,10 @@
 package tui
 
-import "strings"
+import (
+	"strings"
+
+	lipgloss "charm.land/lipgloss/v2"
+)
 
 func filterItems(items []WorktreeItem, query string) []WorktreeItem {
 	query = strings.ToLower(query)
@@ -92,9 +96,25 @@ func exactBranchMatch(branches []string, name string) bool {
 	return false
 }
 
+// isPrintableText returns true if s is non-empty and contains only printable
+// characters (no control codes). Used to filter tea.KeyPressMsg.Text so that
+// control key combinations don't leak into input buffers.
+func isPrintableText(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
 func padRight(s string, n int) string {
-	if len(s) >= n {
+	w := lipgloss.Width(s)
+	if w >= n {
 		return s
 	}
-	return s + strings.Repeat(" ", n-len(s))
+	return s + strings.Repeat(" ", n-w)
 }

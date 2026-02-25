@@ -1,13 +1,12 @@
 package tui
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/theme"
 )
 
-// ColorScheme is re-exported from internal/theme for backward compatibility
-// within the TUI package. New code should use theme.ColorScheme directly.
+// ColorScheme is re-exported from internal/theme for backward compatibility.
 type ColorScheme = theme.ColorScheme
 
 // Colors is the global color scheme, delegating to the shared theme package.
@@ -163,8 +162,8 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		NormalItem:    lipgloss.NewStyle().Foreground(cs.TextNormal),
 		CurrentItem:   lipgloss.NewStyle().Foreground(cs.Secondary),
 		DimmedItem:    lipgloss.NewStyle().Foreground(cs.TextMuted),
-		ListCursor:    lipgloss.NewStyle().Foreground(cs.Primary).SetString("❯ "),
-		ListCursorDim: lipgloss.NewStyle().SetString("  "),
+		ListCursor:    lipgloss.NewStyle().Foreground(cs.Primary),
+		ListCursorDim: lipgloss.NewStyle(),
 
 		// Status badges
 		StatusClean:          lipgloss.NewStyle().Foreground(cs.Success),

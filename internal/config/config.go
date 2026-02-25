@@ -254,12 +254,18 @@ func mergeConfigs(base, override *Config) *Config {
 		result.TUI.WorktreeNameFromBranch = override.TUI.WorktreeNameFromBranch
 	}
 
-	// Merge protection config
+	// Merge protection config - union semantics (global protections always apply)
 	if len(override.Protection.Protected) > 0 {
-		result.Protection.Protected = override.Protection.Protected
+		result.Protection.Protected = deduplicatedUnion(
+			result.Protection.Protected,
+			override.Protection.Protected,
+		)
 	}
 	if len(override.Protection.Immutable) > 0 {
-		result.Protection.Immutable = override.Protection.Immutable
+		result.Protection.Immutable = deduplicatedUnion(
+			result.Protection.Immutable,
+			override.Protection.Immutable,
+		)
 	}
 
 	// Merge test config
@@ -271,6 +277,25 @@ func mergeConfigs(base, override *Config) *Config {
 	}
 
 	return &result
+}
+
+// deduplicatedUnion merges two string slices, preserving order and removing duplicates.
+func deduplicatedUnion(base, override []string) []string {
+	seen := make(map[string]bool, len(base))
+	result := make([]string, 0, len(base)+len(override))
+	for _, s := range base {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+	for _, s := range override {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 // IsProtected checks if a worktree is in the protected list

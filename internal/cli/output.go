@@ -2,14 +2,15 @@ package cli
 
 import (
 	"fmt"
+	"image/color"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/theme"
 )
 
 // printWithIcon is a shared helper for the icon-prefixed print functions.
-func printWithIcon(w *Writer, color lipgloss.TerminalColor, icon, format string, args ...any) {
+func printWithIcon(w *Writer, color color.Color, icon, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.UseColor() {
 		styled := lipgloss.NewStyle().Foreground(color).Render(icon)

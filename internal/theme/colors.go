@@ -1,38 +1,40 @@
 package theme
 
 import (
+	"image/color"
 	"os"
+	"strconv"
+	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
-// ColorScheme defines semantic colors using AdaptiveColor for automatic
-// dark/light terminal adaptation.
+// ColorScheme defines semantic colors for dark/light terminal adaptation.
 type ColorScheme struct {
 	// Brand
-	Primary   lipgloss.AdaptiveColor
-	Secondary lipgloss.AdaptiveColor
+	Primary   color.Color
+	Secondary color.Color
 
 	// Status
-	Success lipgloss.AdaptiveColor
-	Warning lipgloss.AdaptiveColor
-	Danger  lipgloss.AdaptiveColor
-	Info    lipgloss.AdaptiveColor
+	Success color.Color
+	Warning color.Color
+	Danger  color.Color
+	Info    color.Color
 
 	// Surface
-	SurfaceBg     lipgloss.AdaptiveColor
-	SurfaceFg     lipgloss.AdaptiveColor
-	SurfaceDim    lipgloss.AdaptiveColor
-	SurfaceBorder lipgloss.AdaptiveColor
+	SurfaceBg     color.Color
+	SurfaceFg     color.Color
+	SurfaceDim    color.Color
+	SurfaceBorder color.Color
 
 	// Selection / Header
-	SelectionBg lipgloss.AdaptiveColor
-	HeaderBg    lipgloss.AdaptiveColor
+	SelectionBg color.Color
+	HeaderBg    color.Color
 
 	// Text
-	TextNormal lipgloss.AdaptiveColor
-	TextBright lipgloss.AdaptiveColor
-	TextMuted  lipgloss.AdaptiveColor
+	TextNormal color.Color
+	TextBright color.Color
+	TextMuted  color.Color
 }
 
 // Colors is the global color scheme. Initialized respecting NO_COLOR.
@@ -42,33 +44,33 @@ var Colors = NewColorScheme()
 func DefaultColorScheme() ColorScheme {
 	return ColorScheme{
 		// Brand — purple/blue inspired by lazygit/charm aesthetics
-		Primary:   lipgloss.AdaptiveColor{Dark: "#A78BFA", Light: "#7C3AED"},
-		Secondary: lipgloss.AdaptiveColor{Dark: "#38BDF8", Light: "#0369A1"},
+		Primary:   AdaptiveColor("#A78BFA", "#7C3AED"),
+		Secondary: AdaptiveColor("#38BDF8", "#0369A1"),
 
 		// Status — Tailwind-inspired semantic colors (light adjusted for WCAG AA)
-		Success: lipgloss.AdaptiveColor{Dark: "#34D399", Light: "#047857"},
-		Warning: lipgloss.AdaptiveColor{Dark: "#FBBF24", Light: "#92400E"},
-		Danger:  lipgloss.AdaptiveColor{Dark: "#F87171", Light: "#DC2626"},
-		Info:    lipgloss.AdaptiveColor{Dark: "#60A5FA", Light: "#2563EB"},
+		Success: AdaptiveColor("#34D399", "#047857"),
+		Warning: AdaptiveColor("#FBBF24", "#92400E"),
+		Danger:  AdaptiveColor("#F87171", "#DC2626"),
+		Info:    AdaptiveColor("#60A5FA", "#2563EB"),
 
 		// Surface — Catppuccin Mocha (dark) / Slate (light)
-		SurfaceBg:     lipgloss.AdaptiveColor{Dark: "#1E1E2E", Light: "#FFFFFF"},
-		SurfaceFg:     lipgloss.AdaptiveColor{Dark: "#CDD6F4", Light: "#1E293B"},
-		SurfaceDim:    lipgloss.AdaptiveColor{Dark: "#585B70", Light: "#94A3B8"},
-		SurfaceBorder: lipgloss.AdaptiveColor{Dark: "#45475A", Light: "#CBD5E1"},
+		SurfaceBg:     AdaptiveColor("#1E1E2E", "#FFFFFF"),
+		SurfaceFg:     AdaptiveColor("#CDD6F4", "#1E293B"),
+		SurfaceDim:    AdaptiveColor("#585B70", "#94A3B8"),
+		SurfaceBorder: AdaptiveColor("#45475A", "#CBD5E1"),
 
 		// Selection / Header
-		SelectionBg: lipgloss.AdaptiveColor{Dark: "#313244", Light: "#E2E8F0"},
-		HeaderBg:    lipgloss.AdaptiveColor{Dark: "#181825", Light: "#F1F5F9"},
+		SelectionBg: AdaptiveColor("#313244", "#E2E8F0"),
+		HeaderBg:    AdaptiveColor("#181825", "#F1F5F9"),
 
 		// Text
-		TextNormal: lipgloss.AdaptiveColor{Dark: "#CDD6F4", Light: "#1E293B"},
-		TextBright: lipgloss.AdaptiveColor{Dark: "#FFFFFF", Light: "#0F172A"},
-		TextMuted:  lipgloss.AdaptiveColor{Dark: "#9399B2", Light: "#475569"},
+		TextNormal: AdaptiveColor("#CDD6F4", "#1E293B"),
+		TextBright: AdaptiveColor("#FFFFFF", "#0F172A"),
+		TextMuted:  AdaptiveColor("#9399B2", "#475569"),
 	}
 }
 
-// NoColorScheme returns a ColorScheme with all empty colors for NO_COLOR mode.
+// NoColorScheme returns a ColorScheme with all nil colors for NO_COLOR mode.
 func NoColorScheme() ColorScheme {
 	return ColorScheme{}
 }
@@ -96,4 +98,28 @@ func IsNoColor() bool {
 func IsHighContrast() bool {
 	_, hc := os.LookupEnv("GROVE_HIGH_CONTRAST")
 	return hc
+}
+
+// AdaptiveColor picks between a dark and light hex color based on terminal mode.
+func AdaptiveColor(dark, light string) color.Color {
+	if IsLightMode() {
+		return lipgloss.Color(light)
+	}
+	return lipgloss.Color(dark)
+}
+
+// IsLightMode checks if the terminal is in light mode.
+func IsLightMode() bool {
+	if val, ok := os.LookupEnv("GROVE_LIGHT_MODE"); ok {
+		return val != "0" && val != "false" && val != "no"
+	}
+	if colorfgbg, ok := os.LookupEnv("COLORFGBG"); ok {
+		parts := strings.Split(colorfgbg, ";")
+		if len(parts) >= 2 {
+			if bg, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
+				return bg >= 8
+			}
+		}
+	}
+	return false
 }

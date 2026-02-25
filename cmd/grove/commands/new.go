@@ -129,7 +129,10 @@ Examples:
 			wsState.LastSyncedAt = &now
 		}
 
-		_ = ctx.State.AddWorktree(name, wsState)
+		if err := ctx.State.AddWorktree(name, wsState); err != nil {
+			fmt.Printf("warning: worktree created but state tracking failed: %v\n", err)
+			fmt.Println("run 'grove repair' to fix")
+		}
 
 		projectName := mgr.GetProjectName()
 
