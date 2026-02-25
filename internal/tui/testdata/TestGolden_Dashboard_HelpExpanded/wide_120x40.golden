@@ -1,12 +1,12 @@
 [2m [1m[1mtest-project[m  ·  5 worktrees  ·  on root                                                                        ● root[m [m
 [2m                                                                        │                                               [m
-[2m 1 ❯ [1mroot[m │  ─────────────────────────────────────────────────── 2h ago │                                               [m
+[2m 1 ❯ root ────────────────────────────────────────────────────── 2h ago │                                               [m
 [2m       [38;2;127;132;156mtest commit for root[m                                             │                                               [m
 [2m                                                                        │                                               [m
-[2m 2 ○ feature-a… │  ───────────────────────────────────────────── 2h ago │                                               [m
+[2m 2 ○ feature-a… ──────────────────────────────────────────────── 2h ago │                                               [m
 [2m       [38;2;127;132;156mtest commit for feature-auth[m                                     │                                               [m
 [2m                                                                        │                                               [m
-[2m 3 ○ fix-bug │  ──────────────────────────────────────────────── 2h ago │                                               [m
+[2m 3 ○ fix-bug ─────────────────────────────────────────────────── 2h ago │                                               [m
 [2m       [38;2;127;132;156mtest commit for fix-bug[m                                          │                                               [m
   ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
   │                                                                                                                  │
@@ -36,5 +36,5 @@
 [2m                                                                        │                                               [m
 [2m                                                                        │                                               [m
 [2m                                                                        │                                               [m
-[2m                                                                        │                                               [m
-[2m  [1m↑↓[m navigate ·   · [1menter[m switch ·   · [1mn[m new ·   · [1md[m delete ·   · [1mf[m fork ·   · [1ms[m sync ·   · [1mc[m config ·   · [1mo[m sort       [m
+[2m  [1m↑↓[m navigate ·   · [1menter[m switch ·   · [1mn[m new ·   · [1md[m delete ·   · [1mf[m fork ·   · [1ms[m sync                                   [m
+[2m  [1mc[m config ·   · [1mo[m sort ·   · [1mv[m compact ·   · [1m/[m filter ·   · [1mp[m PRs ·   · [1mi[m issues ·   · [1m?[m more                          [m
