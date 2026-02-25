@@ -121,10 +121,11 @@ func (t *Table) Render() {
 			displayWidth := lipgloss.Width(display)
 
 			// Apply color function if available.
-			// ColorFn receives the original value for correct status matching;
-			// padding is based on the display (possibly truncated) width.
+			// ColorFn receives the truncated display string so the rendered
+			// width matches the column. Callers that need status-based coloring
+			// (e.g., "clean" → green) pass short values that won't be truncated.
 			if useColor && t.columns[i].ColorFn != nil {
-				colored := t.columns[i].ColorFn(val)
+				colored := t.columns[i].ColorFn(display)
 				padding := widths[i] - displayWidth
 				if padding > 0 {
 					colored += strings.Repeat(" ", padding)
