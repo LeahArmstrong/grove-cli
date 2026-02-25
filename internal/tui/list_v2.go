@@ -31,22 +31,33 @@ func ComputeDelegateWidthsV2(items []list.Item, width int) WorktreeDelegateV2 {
 
 	d := WorktreeDelegateV2{}
 
-	// Name: use actual max, capped at 40, min 10
+	// Scale caps with available width so ultrawide terminals use the space
+	nameCap := 40
+	branchCap := 30
+	if width >= 120 {
+		nameCap = 55
+		branchCap = 40
+	} else if width >= 90 {
+		nameCap = 45
+		branchCap = 35
+	}
+
+	// Name: use actual max, capped and floored
 	d.NameWidth = maxName
-	if d.NameWidth > 40 {
-		d.NameWidth = 40
+	if d.NameWidth > nameCap {
+		d.NameWidth = nameCap
 	}
 	if d.NameWidth < 10 {
 		d.NameWidth = 10
 	}
 
-	// Branch: use actual max, capped at 30, min 0; hidden at narrow widths
+	// Branch: use actual max, capped; hidden at narrow widths
 	if width < 60 {
 		d.BranchWidth = 0
 	} else {
 		d.BranchWidth = maxBranch
-		if d.BranchWidth > 30 {
-			d.BranchWidth = 30
+		if d.BranchWidth > branchCap {
+			d.BranchWidth = branchCap
 		}
 	}
 
@@ -56,86 +67,113 @@ func ComputeDelegateWidthsV2(items []list.Item, width int) WorktreeDelegateV2 {
 // worktreeIndicator returns the leading indicator for a worktree item.
 // Selected always shows ❯. Non-selected shows status: ● (current/dirty), ✗ (stale), ○ (clean).
 func worktreeIndicator(item WorktreeItem, selected bool) string {
+	return worktreeIndicatorBg(item, selected)
+}
+
+// worktreeIndicatorBg returns the indicator with optional selection background.
+func worktreeIndicatorBg(item WorktreeItem, selected bool) string {
+	withBg := func(s lipgloss.Style) lipgloss.Style {
+		if selected {
+			return s.Background(Colors.SelectionBg)
+		}
+		return s
+	}
 	if selected {
-		return Styles.ListCursor.Render("❯")
+		return withBg(Styles.ListCursor).Render("❯")
 	}
 	switch {
 	case item.IsCurrent:
-		return Styles.StatusSuccess.Render("●")
+		return withBg(Styles.StatusSuccess).Render("●")
 	case item.IsDirty:
-		return Styles.StatusWarning.Render("●")
+		return withBg(Styles.StatusWarning).Render("●")
 	case item.IsPrunable:
-		return Styles.StatusDanger.Render("✗")
+		return withBg(Styles.StatusDanger).Render("✗")
 	default:
-		return Styles.TextMuted.Render("○")
+		return withBg(Styles.TextMuted).Render("○")
 	}
 }
 
-// worktreeStatusTextV2 returns a status string for the item.
-func worktreeStatusTextV2(item WorktreeItem) string {
-	if item.IsPrunable {
-		return Styles.StatusDanger.Render("stale")
-	}
-	if item.IsDirty {
-		count := len(item.DirtyFiles)
-		if count > 0 {
-			return Styles.StatusWarning.Render(fmt.Sprintf("dirty (%d)", count))
+// compactIndicators returns compact status indicators for line 1.
+// Format: ↑N ↓N ~N (sync ahead/behind, dirty count). Stale shows ✗.
+func compactIndicators(item WorktreeItem) string {
+	return compactIndicatorsBg(item, false)
+}
+
+// compactIndicatorsBg returns compact indicators with optional selection background.
+func compactIndicatorsBg(item WorktreeItem, selected bool) string {
+	withBg := func(s lipgloss.Style) lipgloss.Style {
+		if selected {
+			return s.Background(Colors.SelectionBg)
 		}
-		return Styles.StatusWarning.Render("dirty")
+		return s
 	}
-	return Styles.StatusSuccess.Render("clean")
+	if item.IsPrunable {
+		return withBg(Styles.StatusDanger).Render("✗")
+	}
+	var parts []string
+	if item.AheadCount > 0 {
+		parts = append(parts, withBg(Styles.StatusSuccess).Render(fmt.Sprintf("↑%d", item.AheadCount)))
+	}
+	if item.BehindCount > 0 {
+		parts = append(parts, withBg(Styles.StatusDanger).Render(fmt.Sprintf("↓%d", item.BehindCount)))
+	}
+	if len(item.DirtyFiles) > 0 {
+		parts = append(parts, withBg(Styles.StatusWarning).Render(fmt.Sprintf("~%d", len(item.DirtyFiles))))
+	}
+	if selected && len(parts) > 1 {
+		spacer := lipgloss.NewStyle().Background(Colors.SelectionBg).Render(" ")
+		return strings.Join(parts, spacer)
+	}
+	return strings.Join(parts, " ")
 }
 
-// worktreeTmuxBadgeV2 returns a tmux badge if a session exists.
-// Uses ⬢ (filled) for attached, ⬡ (unfilled) for detached — consistent
-// with the symbol convention in the table-style list delegate.
-func worktreeTmuxBadgeV2(item WorktreeItem) string {
-	switch item.TmuxStatus {
-	case "attached":
-		return Styles.TmuxBadge.Render("⬢ tmux")
-	case "detached":
-		return Styles.TmuxBadge.Render("⬡ tmux")
-	default:
-		return ""
-	}
+// renderBadgesV2 returns right-aligned badges for line 2.
+// Order: container statuses first, tmux last (fixed-width, most common).
+func renderBadgesV2(item WorktreeItem) string {
+	return renderBadgesV2Bg(item, false)
 }
 
-// worktreeContainerBadgeV2 returns a container status badge from plugin statuses.
-func worktreeContainerBadgeV2(item WorktreeItem) string {
+// renderBadgesV2Bg returns badges with optional selection background.
+func renderBadgesV2Bg(item WorktreeItem, selected bool) string {
+	withBg := func(s lipgloss.Style) lipgloss.Style {
+		if selected {
+			return s.Background(Colors.SelectionBg)
+		}
+		return s
+	}
+
+	var parts []string
+
+	// Container badges first
 	for _, s := range item.PluginStatuses {
 		if s.Short == "" {
 			continue
 		}
 		switch s.Level {
 		case plugins.StatusActive:
-			return Styles.ContainerBadgeActive.Render("◆ " + s.Short)
+			parts = append(parts, withBg(Styles.ContainerBadgeActive).Render("◆ "+s.Short))
 		case plugins.StatusWarning:
-			return Styles.ContainerBadgeWarn.Render("◆ " + s.Short)
+			parts = append(parts, withBg(Styles.ContainerBadgeWarn).Render("◆ "+s.Short))
 		case plugins.StatusInfo:
-			return Styles.ContainerBadge.Render("◇ " + s.Short)
+			parts = append(parts, withBg(Styles.ContainerBadge).Render("◇ "+s.Short))
 		default:
-			return Styles.TextMuted.Render("◇ " + s.Short)
+			parts = append(parts, withBg(Styles.TextMuted).Render("◇ "+s.Short))
 		}
 	}
-	return ""
-}
 
-// worktreeSyncBadgeV2 returns a compact sync status badge for the list.
-func worktreeSyncBadgeV2(item WorktreeItem) string {
-	if !item.HasRemote {
-		return ""
+	// Tmux badge last (fixed-width text, most frequently present)
+	switch item.TmuxStatus {
+	case "attached":
+		parts = append(parts, withBg(Styles.TmuxBadgeActive).Render("⬢ tmux"))
+	case "detached":
+		parts = append(parts, withBg(Styles.TmuxBadge).Render("⬡ tmux"))
 	}
-	if item.AheadCount == 0 && item.BehindCount == 0 {
-		return ""
+
+	if selected && len(parts) > 1 {
+		spacer := lipgloss.NewStyle().Background(Colors.SelectionBg).Render(" ")
+		return strings.Join(parts, spacer)
 	}
-	var parts []string
-	if item.AheadCount > 0 {
-		parts = append(parts, Styles.StatusSuccess.Render(fmt.Sprintf("↑%d", item.AheadCount)))
-	}
-	if item.BehindCount > 0 {
-		parts = append(parts, Styles.StatusDanger.Render(fmt.Sprintf("↓%d", item.BehindCount)))
-	}
-	return strings.Join(parts, "")
+	return strings.Join(parts, " ")
 }
 
 // WorktreeDelegateV2 implements list.ItemDelegate with visual indicators.
@@ -150,7 +188,7 @@ func NewWorktreeDelegateV2() WorktreeDelegateV2 {
 }
 
 func (d WorktreeDelegateV2) Height() int                             { return 2 }
-func (d WorktreeDelegateV2) Spacing() int                            { return 0 }
+func (d WorktreeDelegateV2) Spacing() int                            { return 1 }
 func (d WorktreeDelegateV2) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
 func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
@@ -162,69 +200,172 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	selected := index == m.Index()
 	width := m.Width()
 
-	// Number prefix for quick-switch (1-9)
-	numPrefix := "  "
-	if index < 9 {
-		numPrefix = Styles.TextMuted.Render(fmt.Sprintf("%d ", index+1))
+	// When selected, add SelectionBg to every style so the background is
+	// continuous across the row. Nested ANSI resets ([m) break outer
+	// backgrounds, so each segment must carry its own background.
+	withBg := func(s lipgloss.Style) lipgloss.Style {
+		if selected {
+			return s.Background(Colors.SelectionBg)
+		}
+		return s
+	}
+	// bgSpace renders plain spaces with the selection background.
+	bgSpace := func(n int) string {
+		if n <= 0 {
+			return ""
+		}
+		s := strings.Repeat(" ", n)
+		if selected {
+			return lipgloss.NewStyle().Background(Colors.SelectionBg).Render(s)
+		}
+		return s
 	}
 
-	indicator := worktreeIndicator(item, selected) + " "
+	mutedStyle := withBg(Styles.TextMuted)
+	// Dim style for commit messages — readable but subordinate
+	dimStyle := withBg(Styles.DimmedItem)
+	// Very dim style for dividers, rules, numbers — structural elements
+	divStyle := withBg(lipgloss.NewStyle().Foreground(Colors.SurfaceDim))
+	// Branch gets its own color to stand out
+	branchStyle := withBg(Styles.StatusInfo)
 
-	// Name styling
-	nameStyle := Styles.NormalItem
+	sep := divStyle.Render(" │ ")
+	const sepLen = 3 // visible width of " │ "
+
+	// === LINE 1: num indicator name │ branch │ indicators ──── age ===
+
+	// Number prefix (2 chars: "N " or "  ")
+	var numPrefix string
+	numLen := 2
+	if index < 9 {
+		numPrefix = divStyle.Render(fmt.Sprintf("%d ", index+1))
+	} else {
+		numPrefix = bgSpace(2)
+	}
+
+	// Status indicator (2 chars: "● " or "❯ ")
+	indicator := worktreeIndicatorBg(item, selected) + bgSpace(1)
+	const indicatorLen = 2
+
+	// Name (variable width, truncated to NameWidth)
+	nameStyle := withBg(Styles.NormalItem)
 	if selected {
-		nameStyle = Styles.SelectedItem
+		nameStyle = withBg(Styles.SelectedItem)
 	}
 	if item.IsCurrent {
-		nameStyle = Styles.CurrentItem
+		nameStyle = withBg(Styles.CurrentItem)
 		if selected {
 			nameStyle = nameStyle.Bold(true)
 		}
 	}
-	name := nameStyle.Render(truncate(item.ShortName, d.NameWidth))
+	nameText := truncate(item.ShortName, d.NameWidth)
+	name := nameStyle.Render(nameText)
+	nameLen := len([]rune(nameText))
 
-	// Line 1: numPrefix + indicator + name
-	line1 := numPrefix + indicator + name
-
-	// Line 2: metadata row (indented to align with name)
-	prefixPad := "     " // align under name (2 num + 1 indicator + 1 space + 1)
-	var metaParts []string
-
+	// Branch (variable width, truncated to BranchWidth)
+	var branchPart string
+	branchLen := 0
 	if d.BranchWidth > 0 {
-		metaParts = append(metaParts, truncate(item.Branch, d.BranchWidth))
+		branchText := truncate(item.Branch, d.BranchWidth)
+		branchPart = sep + branchStyle.Render(branchText)
+		branchLen = sepLen + len([]rune(branchText))
 	}
 
-	if item.CommitAge != "" {
-		metaParts = append(metaParts, compactAge(item.CommitAge))
-	}
-
-	metaParts = append(metaParts, cleanAnsi(worktreeStatusTextV2(item)))
-
-	syncBadge := worktreeSyncBadgeV2(item)
-	if syncBadge != "" {
-		metaParts = append(metaParts, cleanAnsi(syncBadge))
-	}
-	tmuxBadge := worktreeTmuxBadgeV2(item)
-	if tmuxBadge != "" {
-		metaParts = append(metaParts, cleanAnsi(tmuxBadge))
-	}
-	containerBadge := worktreeContainerBadgeV2(item)
-	if containerBadge != "" {
-		metaParts = append(metaParts, cleanAnsi(containerBadge))
-	}
-
-	line2 := prefixPad + Styles.TextMuted.Render(strings.Join(metaParts, " · "))
-
-	// Apply selection background to both lines
-	if selected {
-		line1 = padToWidth(line1, width)
-		line2 = padToWidth(line2, width)
-		line1 = Styles.SelectionRow.MaxWidth(width).Render(line1)
-		line2 = Styles.SelectionRow.MaxWidth(width).Render(line2)
+	// Compact indicators (↑N ↓N ~N)
+	indicators := compactIndicatorsBg(item, selected)
+	indVisLen := lipgloss.Width(indicators)
+	var indPart string
+	indPartLen := 0
+	if indVisLen > 0 {
+		indPart = sep + indicators
+		indPartLen = sepLen + indVisLen
 	} else {
-		line1 = lipgloss.NewStyle().MaxWidth(width).Render(line1)
-		line2 = lipgloss.NewStyle().MaxWidth(width).Render(line2)
+		// Show separator even when no indicators, for rule continuity
+		indPart = bgSpace(1) + divStyle.Render("│") + bgSpace(1)
+		indPartLen = sepLen
 	}
+
+	// Age (right-aligned after rule fill)
+	age := ""
+	ageLen := 0
+	if item.CommitAge != "" {
+		age = compactAge(item.CommitAge)
+		ageLen = len(age)
+	}
+
+	// Rule fill: bridges gap between indicators and age
+	usedLen := numLen + indicatorLen + nameLen + branchLen + indPartLen
+	ruleSpace := width - usedLen - ageLen
+	if ageLen > 0 {
+		ruleSpace -= 2 // spaces around rule/before age
+	}
+
+	var rulePart string
+	if ruleSpace > 0 {
+		rulePart = bgSpace(1) + divStyle.Render(strings.Repeat("─", ruleSpace))
+		if ageLen > 0 {
+			rulePart += bgSpace(1)
+		}
+	} else if ageLen > 0 {
+		rulePart = bgSpace(1)
+	}
+
+	agePart := ""
+	if ageLen > 0 {
+		agePart = mutedStyle.Render(age)
+	}
+
+	line1 := numPrefix + indicator + name + branchPart + indPart + rulePart + agePart
+
+	// === LINE 2: commit message (left) + badges (right-aligned) ===
+	const line2Pad = 6 // indent to align under name (num:2 + indicator:2 + 2 spaces)
+	padStr := bgSpace(line2Pad)
+
+	badges := renderBadgesV2Bg(item, selected)
+	badgesVisLen := lipgloss.Width(badges)
+	commitText := item.CommitMessage
+	availL2 := width - line2Pad
+
+	var line2 string
+	if badgesVisLen > 0 && commitText != "" {
+		// Both: commit left, badges right
+		msgSpace := availL2 - badgesVisLen - 1
+		if msgSpace > 10 {
+			msg := dimStyle.Render(truncate(commitText, msgSpace))
+			msgVisLen := lipgloss.Width(msg)
+			gap := availL2 - msgVisLen - badgesVisLen
+			if gap < 1 {
+				gap = 1
+			}
+			line2 = padStr + msg + bgSpace(gap) + badges
+		} else {
+			// Not enough room for commit, just badges right-aligned
+			gap := availL2 - badgesVisLen
+			if gap < 0 {
+				gap = 0
+			}
+			line2 = padStr + bgSpace(gap) + badges
+		}
+	} else if badgesVisLen > 0 {
+		// Badges only, right-aligned
+		gap := availL2 - badgesVisLen
+		if gap < 0 {
+			gap = 0
+		}
+		line2 = padStr + bgSpace(gap) + badges
+	} else if commitText != "" {
+		// Commit message only (fallback)
+		line2 = padStr + dimStyle.Render(truncate(commitText, availL2))
+	} else {
+		line2 = padStr
+	}
+
+	// Pad remaining width so selection background covers the full row
+	line1 = line1 + bgSpace(width-lipgloss.Width(line1))
+	line2 = line2 + bgSpace(width-lipgloss.Width(line2))
+
+	line1 = lipgloss.NewStyle().MaxWidth(width).Render(line1)
+	line2 = lipgloss.NewStyle().MaxWidth(width).Render(line2)
 
 	_, _ = fmt.Fprint(w, lipgloss.JoinVertical(lipgloss.Left, line1, line2))
 }
@@ -236,9 +377,4 @@ func padToWidth(s string, width int) string {
 		return s + strings.Repeat(" ", width-w)
 	}
 	return s
-}
-
-// cleanAnsi removes ANSI escape sequences from a string for plain-text display.
-func cleanAnsi(s string) string {
-	return ansiRegex.ReplaceAllString(s, "")
 }

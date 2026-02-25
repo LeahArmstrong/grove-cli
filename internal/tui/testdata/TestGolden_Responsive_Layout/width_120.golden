@@ -1,19 +1,19 @@
  [1m[1mtest-project[m  ·  5 worktrees  ·  on root                                                                        ● root[m 
                                                                         │                                               
- 1 ❯ [1mroot[m                                                               │                                               
-      2h ago · dirty                                                    │                                               
- 2 ○ feature-a…                                                         │                                               
-      2h ago · clean                                                    │                                               
- 3 ○ fix-bug                                                            │                                               
-      2h ago · clean                                                    │                                               
- 4 ● testing                                                            │                                               
-      2h ago · dirty                                                    │                                               
- 5 ○ refactor                                                           │                                               
-      2h ago · clean                                                    │                                               
+ 1 ❯ [1mroot[m │  ─────────────────────────────────────────────────── 2h ago │                                               
+       [38;2;127;132;156mtest commit for root[m                                             │                                               
                                                                         │                                               
+ 2 ○ feature-a… │  ───────────────────────────────────────────── 2h ago │                                               
+       [38;2;127;132;156mtest commit for feature-auth[m                                     │                                               
                                                                         │                                               
+ 3 ○ fix-bug │  ──────────────────────────────────────────────── 2h ago │                                               
+       [38;2;127;132;156mtest commit for fix-bug[m                                          │                                               
                                                                         │                                               
+ 4 ● testing │  ──────────────────────────────────────────────── 2h ago │                                               
+       [38;2;127;132;156mtest commit for testing[m                                          │                                               
                                                                         │                                               
+ 5 ○ refactor │  ─────────────────────────────────────────────── 2h ago │                                               
+       [38;2;127;132;156mtest commit for refactor[m                                         │                                               
                                                                         │                                               
                                                                         │                                               
                                                                         │                                               

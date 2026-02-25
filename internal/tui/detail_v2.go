@@ -125,7 +125,7 @@ func renderStatusValue(item *WorktreeItem) string {
 		count := len(item.DirtyFiles)
 		return Styles.StatusWarning.Render(fmt.Sprintf("● dirty (%d files)", count))
 	default:
-		return Styles.StatusSuccess.Render("✓ clean")
+		return Styles.StatusSuccess.Render("● clean")
 	}
 }
 
@@ -135,14 +135,14 @@ func renderSyncValue(item *WorktreeItem) string {
 		return Styles.StatusWarning.Render("⚠ no remote")
 	}
 	if item.AheadCount == 0 && item.BehindCount == 0 {
-		return Styles.StatusSuccess.Render("✓ synced")
+		return Styles.StatusSuccess.Render("● synced")
 	}
 	var parts []string
 	if item.AheadCount > 0 {
 		parts = append(parts, Styles.StatusSuccess.Render(fmt.Sprintf("↑%d", item.AheadCount)))
 	}
 	if item.BehindCount > 0 {
-		parts = append(parts, Styles.StatusWarning.Render(fmt.Sprintf("↓%d", item.BehindCount)))
+		parts = append(parts, Styles.StatusDanger.Render(fmt.Sprintf("↓%d", item.BehindCount)))
 	}
 	return strings.Join(parts, " ")
 }
@@ -151,13 +151,13 @@ func renderSyncValue(item *WorktreeItem) string {
 func renderContainerValue(s *plugins.StatusEntry) string {
 	switch s.Level {
 	case plugins.StatusActive:
-		return Styles.StatusSuccess.Render("● " + s.Detail)
+		return Styles.ContainerBadgeActive.Render("◆ " + s.Detail)
 	case plugins.StatusWarning:
-		return Styles.StatusWarning.Render("○ " + s.Detail)
+		return Styles.ContainerBadgeWarn.Render("◆ " + s.Detail)
 	case plugins.StatusInfo:
-		return Styles.StatusInfo.Render("○ " + s.Detail)
+		return Styles.ContainerBadge.Render("◇ " + s.Detail)
 	default:
-		return Styles.TextMuted.Render(s.Detail)
+		return Styles.TextMuted.Render("◇ " + s.Detail)
 	}
 }
 
@@ -165,9 +165,9 @@ func renderContainerValue(s *plugins.StatusEntry) string {
 func renderTmuxValue(item *WorktreeItem) string {
 	switch item.TmuxStatus {
 	case "attached":
-		return Styles.StatusSuccess.Render("● active session")
+		return Styles.TmuxBadgeActive.Render("⬢ active session")
 	case "detached":
-		return Styles.StatusInfo.Render("○ detached session")
+		return Styles.TmuxBadge.Render("⬡ detached session")
 	default:
 		return ""
 	}
