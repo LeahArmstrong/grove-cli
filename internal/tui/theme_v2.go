@@ -3,13 +3,17 @@ package tui
 import (
 	"image/color"
 	"os"
+	"strconv"
+	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
 )
 
 // adaptiveColor picks between a dark and light hex color.
 // In v2 lipgloss, AdaptiveColor no longer exists.
-// We default to dark mode and allow override via COLORFGBG or GROVE_LIGHT_MODE.
+// We default to dark mode and allow override via GROVE_LIGHT_MODE env var.
+// Falls back to COLORFGBG heuristic if GROVE_LIGHT_MODE is not set.
+// Colors are resolved once at package init time (not re-evaluated on theme changes).
 func adaptiveColor(dark, light string) color.Color {
 	if isLightMode() {
 		return lipgloss.Color(light)
@@ -18,9 +22,21 @@ func adaptiveColor(dark, light string) color.Color {
 }
 
 // isLightMode checks if the terminal is in light mode.
+// Priority: GROVE_LIGHT_MODE env var (explicit) > COLORFGBG heuristic > dark default.
 func isLightMode() bool {
-	_, lm := os.LookupEnv("GROVE_LIGHT_MODE")
-	return lm
+	if val, ok := os.LookupEnv("GROVE_LIGHT_MODE"); ok {
+		return val != "0" && val != "false" && val != "no"
+	}
+	// COLORFGBG is "fg;bg" — bg >= 8 typically means light background.
+	if colorfgbg, ok := os.LookupEnv("COLORFGBG"); ok {
+		parts := strings.Split(colorfgbg, ";")
+		if len(parts) >= 2 {
+			if bg, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
+				return bg >= 8
+			}
+		}
+	}
+	return false
 }
 
 // ColorScheme defines semantic colors for the TUI.

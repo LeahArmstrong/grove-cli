@@ -235,7 +235,7 @@ func (m Model) handleForkKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				s.Err = nil
 			}
 			return m, nil
-		case msg.Text != "":
+		case isPrintableText(msg.Text):
 			s.Name += msg.Text
 			s.Err = nil
 			return m, nil
