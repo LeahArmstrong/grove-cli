@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
@@ -156,37 +157,38 @@ var hereCmd = &cobra.Command{
 		}
 
 		// Default: formatted output
-		statusIcon := "✓ Clean"
-		if tree.IsDirty {
-			statusIcon = "● Dirty"
-		}
+		w := cli.NewStdout()
 
-		fmt.Printf("%s (%s)\n", displayName, tree.Branch)
-		fmt.Println(strings.Repeat("━", 40))
-		fmt.Printf("Path:    %s\n", tree.Path)
-		fmt.Printf("Branch:  %s\n", tree.Branch)
+		cli.Header(w, "%s (%s)", displayName, tree.Branch)
+		cli.Label(w, "Path:   ", tree.Path)
+		cli.Label(w, "Branch: ", tree.Branch)
 
 		// Show commit info
 		if tree.ShortCommit != "" && tree.CommitMessage != "" {
-			fmt.Printf("Commit:  %s - %s (%s)\n", tree.ShortCommit, tree.CommitMessage, tree.CommitAge)
+			cli.Label(w, "Commit: ", fmt.Sprintf("%s - %s (%s)", tree.ShortCommit, tree.CommitMessage, tree.CommitAge))
 		} else {
-			fmt.Printf("Commit:  %s\n", tree.Commit)
+			cli.Label(w, "Commit: ", tree.Commit)
 		}
 
-		fmt.Printf("Status:  %s\n", statusIcon)
+		// Show status with color
+		if tree.IsDirty {
+			cli.Label(w, "Status: ", cli.StatusText(w, "dirty", "● Dirty"))
+		} else {
+			cli.Label(w, "Status: ", cli.StatusText(w, "clean", "✓ Clean"))
+		}
 
 		// Show dirty files if present
 		if tree.IsDirty && tree.DirtyFiles != "" {
 			lines := strings.Split(tree.DirtyFiles, "\n")
 			if len(lines) > maxDirtyFilesShown {
 				for i := 0; i < maxDirtyFilesShown; i++ {
-					fmt.Printf("         %s\n", lines[i])
+					cli.Faint(w, "         %s", lines[i])
 				}
-				fmt.Printf("         ... and %d more\n", len(lines)-maxDirtyFilesShown)
+				cli.Faint(w, "         ... and %d more", len(lines)-maxDirtyFilesShown)
 			} else {
 				for _, line := range lines {
 					if line != "" {
-						fmt.Printf("         %s\n", line)
+						cli.Faint(w, "         %s", line)
 					}
 				}
 			}
@@ -194,27 +196,27 @@ var hereCmd = &cobra.Command{
 
 		// Show environment info
 		if isEnv {
-			fmt.Printf("Type:    environment")
+			envValue := "environment"
 			if mirror != "" {
-				fmt.Printf(" (mirror: %s)", mirror)
+				envValue = fmt.Sprintf("environment (mirror: %s)", mirror)
 			}
-			fmt.Println()
+			cli.Label(w, "Type:   ", envValue)
 		}
 
 		// Show agent stack info
 		if agentSlot > 0 {
-			fmt.Printf("Stack:   isolated (slot %d)\n", agentSlot)
+			cli.Label(w, "Stack:  ", fmt.Sprintf("isolated (slot %d)", agentSlot))
 			if agentURL != "" {
-				fmt.Printf("URL:     %s\n", agentURL)
+				cli.Label(w, "URL:    ", agentURL)
 			}
 		}
 
 		// Show tmux status
-		fmt.Printf("tmux:    %s", tmuxSessionName)
+		tmuxValue := tmuxSessionName
 		if tmuxStatus != "none" {
-			fmt.Printf(" (%s)", tmuxStatus)
+			tmuxValue = fmt.Sprintf("%s (%s)", tmuxSessionName, tmuxStatus)
 		}
-		fmt.Println()
+		cli.Label(w, "tmux:   ", tmuxValue)
 
 		return nil
 	}),

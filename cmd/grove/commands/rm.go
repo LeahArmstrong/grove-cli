@@ -6,11 +6,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/git"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
-	"github.com/LeahArmstrong/grove-cli/internal/prompt"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
@@ -47,6 +47,9 @@ Examples:
 			return fmt.Errorf("worktree name cannot be empty")
 		}
 
+		w := cli.NewStdout()
+		stderr := cli.NewStderr()
+
 		mgr, err := worktree.NewManager(ctx.ProjectRoot)
 		if err != nil {
 			return fmt.Errorf("failed to initialize worktree manager: %w", err)
@@ -71,12 +74,12 @@ Examples:
 				if isEnvironment {
 					reason = "environment worktree"
 				}
-				fmt.Fprintf(os.Stderr, "Error: worktree '%s' is protected (%s)\n", name, reason)
+				cli.Error(stderr, "worktree '%s' is protected (%s)", name, reason)
 				fmt.Fprintf(os.Stderr, "To remove, use: grove rm %s --force --unprotect\n", name)
 				os.Exit(exitcode.CannotRemove)
 			}
 			if !rmDryRun {
-				fmt.Printf("⚠ Removing protected worktree '%s'\n", name)
+				cli.Warning(w, "Removing protected worktree '%s'", name)
 			}
 		}
 
@@ -85,7 +88,7 @@ Examples:
 		if currentTree != nil {
 			wt, _ := mgr.Find(name)
 			if wt != nil && currentTree.Path == wt.Path {
-				fmt.Fprintf(os.Stderr, "Error: cannot remove current worktree '%s'\n", name)
+				cli.Error(stderr, "cannot remove current worktree '%s'", name)
 				fmt.Fprintf(os.Stderr, "Switch to another worktree first: grove to <name>\n")
 				os.Exit(exitcode.CannotRemove)
 			}
@@ -127,9 +130,9 @@ Examples:
 			exists, err := tmux.SessionExists(sessionName)
 			if err == nil && exists {
 				if err := tmux.KillSession(sessionName); err != nil {
-					fmt.Printf("⚠ Failed to kill tmux session: %v\n", err)
+					cli.Warning(w, "Failed to kill tmux session: %v", err)
 				} else {
-					fmt.Printf("✓ Killed tmux session '%s'\n", sessionName)
+					cli.Success(w, "Killed tmux session '%s'", sessionName)
 				}
 			}
 		}
@@ -155,9 +158,9 @@ Examples:
 				hookCtx.NewPath = wt.Path
 				hookCtx.WorktreeFull = projectName + "-" + name
 			}
-			fmt.Println("\nRunning pre-remove hooks...")
+			cli.Step(w, "Running pre-remove hooks...")
 			if err := hookExecutor.Execute(hooks.EventPreRemove, hookCtx); err != nil {
-				fmt.Printf("⚠ Hook execution had errors: %v\n", err)
+				cli.Warning(w, "Hook execution had errors: %v", err)
 			}
 		}
 
@@ -173,7 +176,7 @@ Examples:
 			MainPath:     ctx.ProjectRoot,
 		}
 		if err := hooks.Fire(hooks.EventPreRemove, pluginHookCtx); err != nil {
-			fmt.Printf("⚠ Pre-remove plugin hook failed: %v\n", err)
+			cli.Warning(w, "Pre-remove plugin hook failed: %v", err)
 		}
 
 		// Remove worktree
@@ -184,12 +187,12 @@ Examples:
 		// Remove from state
 		_ = ctx.State.RemoveWorktree(name)
 
-		fmt.Printf("✓ Removed worktree '%s'\n", name)
+		cli.Success(w, "Removed worktree '%s'", name)
 
 		// Handle branch deletion
 		if branchName != "" && !rmKeepBranch {
 			if err := handleBranchDeletion(ctx.ProjectRoot, branchName, rmDeleteBranch, rmForce); err != nil {
-				fmt.Printf("⚠ Branch handling: %v\n", err)
+				cli.Warning(w, "Branch handling: %v", err)
 			}
 		}
 
@@ -202,13 +205,13 @@ Examples:
 				Project:  projectName,
 				MainPath: ctx.ProjectRoot,
 			}
-			fmt.Println("\nRunning post-remove hooks...")
+			cli.Step(w, "Running post-remove hooks...")
 			_ = hookExecutor.Execute(hooks.EventPostRemove, hookCtx)
 		}
 
 		// Fire plugin post-remove hook
 		if err := hooks.Fire(hooks.EventPostRemove, pluginHookCtx); err != nil {
-			fmt.Printf("⚠ Post-remove plugin hook failed: %v\n", err)
+			cli.Warning(w, "Post-remove plugin hook failed: %v", err)
 		}
 
 		return nil
@@ -217,6 +220,8 @@ Examples:
 
 // handleBranchDeletion manages the branch deletion logic
 func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bool) error {
+	w := cli.NewStdout()
+
 	branchMgr, err := git.NewBranchManager(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize branch manager: %w", err)
@@ -230,7 +235,7 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 
 	// If branch is used by another worktree, keep it
 	if status.UsedByWorktree != "" {
-		fmt.Printf("ℹ Branch '%s' is used by worktree at %s (keeping)\n", branch, status.UsedByWorktree)
+		cli.Info(w, "Branch '%s' is used by worktree at %s (keeping)", branch, status.UsedByWorktree)
 		return nil
 	}
 
@@ -239,7 +244,7 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 		if err := branchMgr.Delete(branch, forceUnmerged); err != nil {
 			return fmt.Errorf("failed to delete branch: %w", err)
 		}
-		fmt.Printf("✓ Deleted branch '%s'\n", branch)
+		cli.Success(w, "Deleted branch '%s'", branch)
 		return nil
 	}
 
@@ -267,13 +272,13 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 		details = append(details, "✓ Branch is merged and safe to delete")
 	}
 
-	header := fmt.Sprintf("\nBranch '%s':", branch)
+	header := fmt.Sprintf("Branch '%s':", branch)
 
 	// Ask for confirmation
-	confirmed, err := prompt.ConfirmWithDetails(header, details, "Delete branch?", true)
+	confirmed, err := cli.ConfirmWithDetails(w, header, details, "Delete branch?", false)
 	if err != nil {
 		// Non-interactive - provide guidance
-		fmt.Printf("ℹ Branch '%s' not deleted (use --delete-branch or --keep-branch)\n", branch)
+		cli.Info(w, "Branch '%s' not deleted (use --delete-branch or --keep-branch)", branch)
 		return nil
 	}
 
@@ -283,9 +288,9 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 		if err := branchMgr.Delete(branch, needsForce); err != nil {
 			return fmt.Errorf("failed to delete branch: %w", err)
 		}
-		fmt.Printf("✓ Deleted branch '%s'\n", branch)
+		cli.Success(w, "Deleted branch '%s'", branch)
 	} else {
-		fmt.Printf("ℹ Kept branch '%s'\n", branch)
+		cli.Info(w, "Kept branch '%s'", branch)
 	}
 
 	return nil

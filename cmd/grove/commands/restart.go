@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
@@ -28,6 +29,8 @@ Examples:
   grove restart web    # Restart 'web' service only
   w restart db         # Using alias`,
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		w := cli.NewStdout()
+
 		// Get current directory (docker-compose works in cwd)
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -50,14 +53,20 @@ Examples:
 		}
 
 		// Restart service(s)
-		if err := plugin.Restart(cwd, service); err != nil {
+		spinMsg := "Restarting containers..."
+		if service != "" {
+			spinMsg = fmt.Sprintf("Restarting %s...", service)
+		}
+		if err := cli.Spin(spinMsg, func() error {
+			return plugin.Restart(cwd, service)
+		}); err != nil {
 			return fmt.Errorf("failed to restart: %w", err)
 		}
 
 		if service != "" {
-			fmt.Printf("Service '%s' restarted\n", service)
+			cli.Success(w, "Service '%s' restarted", service)
 		} else {
-			fmt.Println("All services restarted")
+			cli.Success(w, "All services restarted")
 		}
 		return nil
 	}),

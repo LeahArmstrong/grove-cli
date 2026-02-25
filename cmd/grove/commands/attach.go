@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -24,6 +25,8 @@ current shell directory. If no name is given, uses the current worktree.
 This is a tmux-only command — it does not emit cd: directives.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		stderr := cli.NewStderr()
+
 		mgr, err := worktree.NewManager(ctx.ProjectRoot)
 		if err != nil {
 			return fmt.Errorf("failed to initialize worktree manager: %w", err)
@@ -94,7 +97,7 @@ This is a tmux-only command — it does not emit cd: directives.`,
 			}
 			created = true
 			if !attachJSON {
-				fmt.Fprintf(os.Stderr, "✓ Created tmux session '%s'\n", sessionName)
+				cli.Success(stderr, "Created tmux session '%s'", sessionName)
 			}
 		}
 
@@ -123,7 +126,7 @@ This is a tmux-only command — it does not emit cd: directives.`,
 			hasShellIntegration := os.Getenv("GROVE_SHELL") == "1"
 			if hasShellIntegration {
 				// Emit tmux-attach directive for shell wrapper
-				fmt.Printf("tmux-attach:%s\n", sessionName)
+				cli.Directive("tmux-attach", sessionName)
 			} else {
 				// No shell integration: attach directly (blocks, takes over terminal)
 				if err := tmux.AttachSession(sessionName); err != nil {
