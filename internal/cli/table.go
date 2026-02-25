@@ -55,18 +55,18 @@ func (t *Table) Render() {
 	cs := theme.Colors
 	useColor := t.w.UseColor()
 
-	// Compute column widths from headers and data
+	// Compute column widths from headers and data using visual width
 	widths := make([]int, len(t.columns))
 	for i, col := range t.columns {
-		widths[i] = len(col.Title)
+		widths[i] = lipgloss.Width(col.Title)
 		if col.MinWidth > widths[i] {
 			widths[i] = col.MinWidth
 		}
 	}
 	for _, row := range t.rows {
 		for i, val := range row {
-			if i < len(widths) && len(val) > widths[i] {
-				widths[i] = len(val)
+			if vw := lipgloss.Width(val); i < len(widths) && vw > widths[i] {
+				widths[i] = vw
 			}
 		}
 	}
@@ -85,7 +85,7 @@ func (t *Table) Render() {
 
 	var headerParts []string
 	for i, col := range t.columns {
-		cell := fmt.Sprintf("%-*s", widths[i], col.Title)
+		cell := col.Title + strings.Repeat(" ", max(0, widths[i]-lipgloss.Width(col.Title)))
 		if useColor {
 			cell = headerStyle.Render(cell)
 		}
@@ -112,29 +112,51 @@ func (t *Table) Render() {
 				break
 			}
 
-			// Truncate if needed
+			// Truncate if needed (rune-aware)
 			display := val
-			if t.columns[i].MaxWidth > 0 && len(display) > widths[i] {
-				display = display[:widths[i]-1] + "…"
+			if t.columns[i].MaxWidth > 0 && lipgloss.Width(display) > widths[i] {
+				display = truncateToWidth(display, widths[i])
 			}
+
+			displayWidth := lipgloss.Width(display)
 
 			// Apply color function if available.
 			// ColorFn receives the original value for correct status matching;
-			// padding is based on the display (possibly truncated) length.
-			// If truncation occurs on a colored column, the rendered text may
-			// slightly exceed the column width — an acceptable tradeoff since
-			// MinWidth should be set to accommodate expected values.
+			// padding is based on the display (possibly truncated) width.
 			if useColor && t.columns[i].ColorFn != nil {
 				colored := t.columns[i].ColorFn(val)
-				padding := widths[i] - len(display)
+				padding := widths[i] - displayWidth
 				if padding > 0 {
 					colored += strings.Repeat(" ", padding)
 				}
 				parts = append(parts, colored)
 			} else {
-				parts = append(parts, fmt.Sprintf("%-*s", widths[i], display))
+				padding := widths[i] - displayWidth
+				if padding > 0 {
+					display += strings.Repeat(" ", padding)
+				}
+				parts = append(parts, display)
 			}
 		}
 		_, _ = fmt.Fprintln(t.w, strings.Join(parts, "  "))
 	}
+}
+
+// truncateToWidth truncates a string to fit within maxWidth visual cells,
+// appending "…" if truncated. Operates on runes to avoid breaking multibyte chars.
+func truncateToWidth(s string, maxWidth int) string {
+	if maxWidth <= 1 {
+		return "…"
+	}
+	var result []rune
+	w := 0
+	for _, r := range s {
+		rw := lipgloss.Width(string(r))
+		if w+rw > maxWidth-1 { // -1 for ellipsis
+			break
+		}
+		result = append(result, r)
+		w += rw
+	}
+	return string(result) + "…"
 }
