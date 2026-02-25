@@ -96,8 +96,9 @@ type Model struct {
 
 	// Layout
 	width, height int
+	compactMode   bool // true = V1 single-line delegate, false = V2 two-line
 
-	// List delegate (stored for header rendering — list.Model doesn't export it)
+	// List delegate (stored for header rendering in compact mode)
 	listDelegate WorktreeDelegate
 }
 
@@ -111,7 +112,18 @@ func NewModel(mgr *worktree.Manager, stateMgr *state.Manager, projectRoot string
 
 	s := GroveSpinner()
 
-	delegate := NewWorktreeDelegate()
+	// Determine compact mode from config
+	compact := cfg != nil && cfg.TUI.CompactList != nil && *cfg.TUI.CompactList
+
+	var delegate list.ItemDelegate
+	var v1Delegate WorktreeDelegate
+	if compact {
+		v1Delegate = NewWorktreeDelegate()
+		delegate = v1Delegate
+	} else {
+		delegate = NewWorktreeDelegateV2()
+	}
+
 	l := list.New(nil, delegate, 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
@@ -139,7 +151,8 @@ func NewModel(mgr *worktree.Manager, stateMgr *state.Manager, projectRoot string
 		cfgLoadErr:   cfgErr,
 		keys:         keys,
 		list:         l,
-		listDelegate: delegate,
+		listDelegate: v1Delegate,
+		compactMode:  compact,
 		spinner:      s,
 		help:         h,
 		toast:        NewToastModel(),
@@ -510,16 +523,18 @@ func (m *Model) updateLayout() {
 	}
 
 	headerHeight := 1 // status bar
-	footerHeight := 1 // help
+	footerHeight := m.helpFooter.CompactHeight(m.activeView, m.width-4)
 	available := m.height - headerHeight - footerHeight
 
 	contentWidth := m.width - 2 // body padding (1 char each side)
 
-	// The list header (column labels + separator) is 2 lines rendered outside
-	// the list component, so subtract from available height.
-	listHeaderHeight := 2
+	// Column headers + separator are only shown in compact mode (2 lines).
+	listHeaderHeight := 0
+	if m.compactMode {
+		listHeaderHeight = 2
+	}
 
-	useSideBySide := m.width > 120
+	useSideBySide := m.width > 100
 	if useSideBySide {
 		// List gets 60% of content width, detail gets the remainder
 		listWidth := contentWidth * 60 / 100
@@ -531,9 +546,9 @@ func (m *Model) updateLayout() {
 	} else {
 		// Stacked: cap list height at item count * row height + padding
 		itemCount := len(m.list.Items())
-		rowHeight := 1                             // delegate Height()
+		rowHeight := m.delegateHeight()
 		idealListHeight := itemCount*rowHeight + 2 // +2 for padding
-		maxListHeight := (available - listHeaderHeight) * 6 / 10
+		maxListHeight := (available - listHeaderHeight) * 75 / 100
 		listHeight := idealListHeight
 		if listHeight > maxListHeight {
 			listHeight = maxListHeight
@@ -555,18 +570,45 @@ func (m *Model) updateLayout() {
 	m.help.SetWidth(contentWidth)
 }
 
+// toggleCompactMode switches between V1 (compact) and V2 (two-line) delegates.
+func (m *Model) toggleCompactMode() {
+	m.compactMode = !m.compactMode
+	if m.compactMode {
+		d := ComputeDelegateWidths(m.list.Items(), m.list.Width())
+		m.listDelegate = d
+		m.list.SetDelegate(d)
+	} else {
+		d := ComputeDelegateWidthsV2(m.list.Items(), m.list.Width())
+		m.list.SetDelegate(d)
+	}
+	m.updateLayout()
+	m.updateDetailContent()
+}
+
+// delegateHeight returns the item height for the active delegate.
+func (m *Model) delegateHeight() int {
+	if m.compactMode {
+		return 1
+	}
+	return 2
+}
+
 // computeColumnWidths scans list items to find max name/branch lengths,
-// then distributes available width proportionally. Stores the result in
-// the delegate and re-sets it on the list.
+// then distributes available width proportionally.
 func (m *Model) computeColumnWidths() {
 	listWidth := m.list.Width()
 	if listWidth <= 0 {
 		return
 	}
 
-	d := ComputeDelegateWidths(m.list.Items(), listWidth)
-	m.listDelegate = d
-	m.list.SetDelegate(d)
+	if m.compactMode {
+		d := ComputeDelegateWidths(m.list.Items(), listWidth)
+		m.listDelegate = d
+		m.list.SetDelegate(d)
+	} else {
+		d := ComputeDelegateWidthsV2(m.list.Items(), listWidth)
+		m.list.SetDelegate(d)
+	}
 }
 
 func (m *Model) updateDetailContent() {
@@ -634,6 +676,10 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case key.Matches(msg, m.keys.Escape):
+		if m.helpFooter.Expanded {
+			m.helpFooter.Toggle()
+			return m, nil
+		}
 		return m, tea.Quit
 
 	case key.Matches(msg, m.keys.Help):
@@ -651,11 +697,12 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			tuilog.Printf("warning: failed to list branches: %v", branchErr)
 		}
 		m.createState = &CreateState{
-			Step:        CreateStepBranch,
-			ProjectName: m.projectName,
-			Branches:    branches,
+			Step:              CreateStepBranch,
+			ProjectName:       m.projectName,
+			Branches:          branches,
+			BranchFilterInput: newBranchFilterInput(),
 		}
-		return m, nil
+		return m, m.createState.BranchFilterInput.Focus()
 
 	case key.Matches(msg, m.keys.Delete):
 		item, ok := m.selectedItem()
@@ -679,6 +726,10 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.switchToDisplayName = item.displayName()
 			return m, tea.Quit
 		}
+
+	case key.Matches(msg, m.keys.ViewMode):
+		m.toggleCompactMode()
+		return m, nil
 
 	case key.Matches(msg, m.keys.Sort):
 		m.sortMode = m.sortMode.Next()
@@ -842,9 +893,10 @@ func (m Model) handleBranchActionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			// fork: new branch, don't use existing
 			s.BaseBranch = ""
 		}
-		// Proceed to Name step
+		// Initialize name input and proceed to Name step
+		s.NameInput = newNameInput(s.NameSuggestion)
 		s.Step = CreateStepName
-		return m, nil
+		return m, s.NameInput.Focus()
 	}
 	return m, nil
 }
@@ -860,7 +912,7 @@ func (m Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.Back):
 		s.Step = CreateStepName
-		return m, nil
+		return m, s.NameInput.Focus()
 
 	case key.Matches(msg, m.keys.Enter):
 		return m.startCreate(s.Name, s.BaseBranch)
@@ -881,8 +933,9 @@ func (m *Model) startCreate(name, baseBranch string) (tea.Model, tea.Cmd) {
 func (m Model) handleBranchSelectorKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := m.createState
 
-	filtered := filteredBranches(s.Branches, s.BranchFilter)
-	showCreateNew := s.BranchFilter != "" && !exactBranchMatch(s.Branches, s.BranchFilter)
+	filter := s.BranchFilterInput.Value()
+	filtered := filteredBranches(s.Branches, filter)
+	showCreateNew := filter != "" && !exactBranchMatch(s.Branches, filter)
 	totalItems := len(filtered)
 	if showCreateNew {
 		totalItems++
@@ -922,6 +975,9 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 			}
 			s.NameSuggestion = worktree.DeriveWorktreeName(selected, strategy)
 
+			// Initialize name input with placeholder
+			s.NameInput = newNameInput(s.NameSuggestion)
+
 			// Check if branch action should be skipped
 			if m.cfg != nil && m.cfg.TUI.SkipBranchNotice != nil && *m.cfg.TUI.SkipBranchNotice {
 				action := m.cfg.TUI.DefaultBranchAction
@@ -929,7 +985,7 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 					s.BaseBranch = ""
 				}
 				s.Step = CreateStepName
-				return m, nil
+				return m, s.NameInput.Focus()
 			}
 
 			s.ActionChoice = 0
@@ -939,30 +995,31 @@ func (m Model) handleBranchSelectorKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		} else if showCreateNew {
 			// Selected "Create new branch"
 			s.BaseBranch = ""
-			s.NewBranchName = s.BranchFilter
-			s.NameSuggestion = s.BranchFilter
+			s.NewBranchName = filter
+			s.NameSuggestion = filter
+
+			// Initialize name input with placeholder
+			s.NameInput = newNameInput(s.NameSuggestion)
+
 			s.Step = CreateStepName
-			return m, nil
+			return m, s.NameInput.Focus()
 		}
 		return m, nil
 
-	case msg.Code == tea.KeyBackspace:
-		if len(s.BranchFilter) > 0 {
-			s.BranchFilter = s.BranchFilter[:len(s.BranchFilter)-1]
+	default:
+		// Route remaining keys through the filter textinput
+		prevVal := s.BranchFilterInput.Value()
+		var cmd tea.Cmd
+		s.BranchFilterInput, cmd = s.BranchFilterInput.Update(msg)
+		if s.BranchFilterInput.Value() != prevVal {
+			s.BranchFilter = s.BranchFilterInput.Value()
 			s.BranchCursor = 0
 		}
-		return m, nil
-
-	case isPrintableText(msg.Text):
-		s.BranchFilter += msg.Text
-		s.BranchCursor = 0
-		return m, nil
+		return m, cmd
 	}
-
-	return m, nil
 }
 
-// handleNameKey handles the name step key input (non-Huh path).
+// handleNameKey handles the name step key input.
 func (m Model) handleNameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := m.createState
 
@@ -973,15 +1030,29 @@ func (m Model) handleNameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keys.Back):
-		s.Step = CreateStepBranch
-		return m, nil
+		// Only go back if the name input is empty
+		if s.NameInput.Value() == "" {
+			s.Step = CreateStepBranch
+			return m, s.BranchFilterInput.Focus()
+		}
+		// Otherwise let textinput handle backspace
+		prevVal := s.NameInput.Value()
+		var cmd tea.Cmd
+		s.NameInput, cmd = s.NameInput.Update(msg)
+		if s.NameInput.Value() != prevVal {
+			s.Name = s.NameInput.Value()
+			s.Error = ""
+			s.ExistingWorktree = checkDuplicateWorktree(s.Name, m.existingWorktreeItems())
+		}
+		return m, cmd
 
 	case key.Matches(msg, m.keys.Enter):
-		effectiveName := s.Name
+		effectiveName := s.NameInput.Value()
 		if effectiveName == "" && s.NameSuggestion != "" {
 			effectiveName = s.NameSuggestion
-			s.Name = effectiveName
+			s.NameInput.SetValue(effectiveName)
 		}
+		s.Name = effectiveName
 		if effectiveName == "" {
 			s.Error = "name cannot be empty"
 			return m, nil
@@ -1002,26 +1073,22 @@ func (m Model) handleNameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		s.Step = CreateStepConfirm
 		return m, nil
 
-	case msg.Code == tea.KeyBackspace:
-		if len(s.Name) > 0 {
-			s.Name = s.Name[:len(s.Name)-1]
-			s.Error = ""
+	default:
+		// Route remaining keys through the name textinput
+		prevVal := s.NameInput.Value()
+		var cmd tea.Cmd
+		s.NameInput, cmd = s.NameInput.Update(msg)
+		if s.NameInput.Value() != prevVal {
+			s.Name = s.NameInput.Value()
+			if errMsg := ValidateWorktreeName(s.Name); errMsg != "" {
+				s.Error = errMsg
+			} else {
+				s.Error = ""
+			}
 			s.ExistingWorktree = checkDuplicateWorktree(s.Name, m.existingWorktreeItems())
 		}
-		return m, nil
-
-	case isPrintableText(msg.Text):
-		s.Name += msg.Text
-		if errMsg := ValidateWorktreeName(s.Name); errMsg != "" {
-			s.Error = errMsg
-		} else {
-			s.Error = ""
-		}
-		s.ExistingWorktree = checkDuplicateWorktree(s.Name, m.existingWorktreeItems())
-		return m, nil
+		return m, cmd
 	}
-
-	return m, nil
 }
 
 func (m *Model) applySortToList() {
@@ -1044,16 +1111,18 @@ func (m Model) enterPRView() (tea.Model, tea.Cmd) {
 	m.prState = &PRViewState{
 		Loading:          true,
 		WorktreeBranches: branches,
+		FilterInput:      newPRFilterInput(),
 	}
-	return m, tea.Batch(m.spinner.Tick, m.fetchPRsCmd)
+	return m, tea.Batch(m.spinner.Tick, m.fetchPRsCmd, m.prState.FilterInput.Focus())
 }
 
 func (m Model) enterIssueView() (tea.Model, tea.Cmd) {
 	m.activeView = ViewIssues
 	m.issueState = &IssueViewState{
-		Loading: true,
+		Loading:     true,
+		FilterInput: newIssueFilterInput(),
 	}
-	return m, tea.Batch(m.spinner.Tick, m.fetchIssuesCmd)
+	return m, tea.Batch(m.spinner.Tick, m.fetchIssuesCmd, m.issueState.FilterInput.Focus())
 }
 
 func (m Model) enterBulkMode() (tea.Model, tea.Cmd) {
@@ -1173,7 +1242,7 @@ func (m Model) viewContent() string {
 		brand := Styles.Header.Render("  grove")
 		msg := Styles.TextMuted.Render("No worktrees found")
 		hint := Styles.HelpKey.Render("n") + " " + Styles.HelpDesc.Render("to create your first worktree")
-		content := brand + "\n\n" + msg + "\n" + hint
+		content := lipgloss.JoinVertical(lipgloss.Center, brand, "", msg, hint)
 		return lipgloss.Place(m.width, m.height,
 			lipgloss.Center, lipgloss.Center,
 			content,
@@ -1252,17 +1321,25 @@ func (m Model) renderDashboard() string {
 		ProjectName:   m.projectName,
 		WorktreeCount: len(m.list.Items()),
 	}
-	// Find current worktree info for header
+	// Find current worktree info and container target for header
 	for _, li := range m.list.Items() {
-		if item, ok := li.(WorktreeItem); ok && item.IsCurrent {
+		item, ok := li.(WorktreeItem)
+		if !ok {
+			continue
+		}
+		if item.IsCurrent {
 			m.header.CurrentBranch = item.Branch
 			m.header.CurrentName = item.ShortName
-			break
+		}
+		for _, ps := range item.PluginStatuses {
+			if strings.Contains(ps.Detail, "pointed") {
+				m.header.ContainerTarget = item.ShortName
+			}
 		}
 	}
 	statusBar := m.header.View(m.width)
 
-	useSideBySide := m.width > 120
+	useSideBySide := m.width > 100
 	bodyWidth := m.width - 2 // 1-char padding each side
 
 	var body string
@@ -1270,22 +1347,33 @@ func (m Model) renderDashboard() string {
 		// Force list view to its allocated width so JoinHorizontal
 		// measures it correctly (list lines may be shorter than the panel).
 		listWidth := m.list.Width()
-		header := renderListHeader(m.listDelegate, listWidth)
-		listContent := lipgloss.NewStyle().Width(listWidth).Render(header + "\n" + m.list.View())
-		divider := renderVerticalDivider(m.list.Height()+2, Colors.SurfaceDim)
+		listContent := m.list.View()
+		if m.compactMode {
+			header := renderListHeader(m.listDelegate, listWidth)
+			listContent = lipgloss.JoinVertical(lipgloss.Left, header, listContent)
+		}
+		listContent = lipgloss.NewStyle().Width(listWidth).Render(listContent)
+		dividerHeight := m.list.Height()
+		if m.compactMode {
+			dividerHeight += 2
+		}
+		divider := renderVerticalDivider(dividerHeight, Colors.SurfaceDim)
 		detailView := m.renderDetailPanel()
 		body = lipgloss.JoinHorizontal(lipgloss.Top, listContent, divider, detailView)
 	} else {
-		header := renderListHeader(m.listDelegate, bodyWidth)
-		listView := header + "\n" + m.list.View()
+		listView := m.list.View()
+		if m.compactMode {
+			header := renderListHeader(m.listDelegate, bodyWidth)
+			listView = lipgloss.JoinVertical(lipgloss.Left, header, listView)
+		}
 		// Named separator showing selected worktree
 		separator := renderNamedSeparator(m.selectedItemName(), bodyWidth)
 		detailView := m.renderDetailPanel()
-		body = listView + "\n" + separator + "\n" + detailView
+		body = lipgloss.JoinVertical(lipgloss.Left, listView, separator, detailView)
 	}
 
 	// Help footer: always show compact hints
-	footer := m.helpFooter.RenderCompact(m.activeView, m.width)
+	footer := m.helpFooter.RenderCompact(m.activeView, m.width-4)
 
 	// Composite toast onto the header line (right-aligned) to avoid layout shift
 	if m.toast != nil && m.toast.Current != nil {
@@ -1298,7 +1386,7 @@ func (m Model) renderDashboard() string {
 	// Wrap body in 1-char horizontal padding for visual framing
 	body = lipgloss.NewStyle().Padding(0, 1).Render(body)
 
-	dashboard := statusBar + "\n" + body + "\n" + footer
+	dashboard := lipgloss.JoinVertical(lipgloss.Left, statusBar, body, footer)
 
 	// Render expanded help as centered overlay
 	if m.helpFooter.Expanded {
@@ -1325,7 +1413,7 @@ func renderVerticalDivider(height int, color color.Color) string {
 	for i := range lines {
 		lines[i] = style.Render("│")
 	}
-	return strings.Join(lines, "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
 // renderNamedSeparator renders a horizontal rule with the selected worktree name embedded.

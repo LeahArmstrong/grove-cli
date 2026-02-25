@@ -1,5 +1,5 @@
 [2m [1m[1mtest-project[m  ·  3 worktrees  ·  on root                                ● root[m [m
-[2m     NAME BRANCH AGE     ± ↕    ⬡ ◆                                             [m
+[2m                                                                                [m
              ╭───────────────────────────────────────────────────╮
              │                                                   │
              │  [1mDelete Worktree[m                                  │
@@ -12,7 +12,7 @@
              │  Path      /tmp/test-project-feature-auth         │
              │  Branch    feature-auth                           │
              │  Commit    abc1234 · 2 hours ago                  │
-             │  Status    ✓ clean                                │
+             │  Status    ● clean                                │
              │                                                   │
              │  [ ] Also delete branch feature-auth              │
              │                                                   │

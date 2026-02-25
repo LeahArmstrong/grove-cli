@@ -150,7 +150,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		SelectionRow: lipgloss.NewStyle().Background(cs.SelectionBg),
 
 		// Layout
-		Header: lipgloss.NewStyle().Bold(true).Foreground(cs.Primary),
+		Header: lipgloss.NewStyle().Bold(true).Foreground(cs.Info),
 		Footer: lipgloss.NewStyle().Foreground(cs.TextMuted),
 		HeaderBar: lipgloss.NewStyle().
 			Background(cs.HeaderBg).
@@ -161,8 +161,8 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		SelectedItem:  lipgloss.NewStyle().Bold(true).Foreground(cs.TextBright),
 		NormalItem:    lipgloss.NewStyle().Foreground(cs.TextNormal),
 		CurrentItem:   lipgloss.NewStyle().Foreground(cs.Secondary),
-		DimmedItem:    lipgloss.NewStyle().Foreground(cs.TextMuted),
-		ListCursor:    lipgloss.NewStyle().Foreground(cs.Primary),
+		DimmedItem:    lipgloss.NewStyle().Foreground(theme.AdaptiveColor("#7F849C", "#64748B")),
+		ListCursor:    lipgloss.NewStyle().Foreground(cs.Info),
 		ListCursorDim: lipgloss.NewStyle(),
 
 		// Status badges
@@ -170,7 +170,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		StatusDirty:          lipgloss.NewStyle().Foreground(cs.Warning),
 		StatusStale:          lipgloss.NewStyle().Foreground(cs.Danger),
 		TmuxBadge:            lipgloss.NewStyle().Foreground(cs.Primary),
-		TmuxBadgeActive:      lipgloss.NewStyle().Foreground(cs.Success),
+		TmuxBadgeActive:      lipgloss.NewStyle().Foreground(cs.Primary),
 		EnvBadge:             lipgloss.NewStyle().Foreground(cs.Info),
 		ContainerBadge:       lipgloss.NewStyle().Foreground(cs.Info),
 		ContainerBadgeActive: lipgloss.NewStyle().Foreground(cs.Secondary),

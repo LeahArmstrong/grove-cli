@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"charm.land/bubbles/v2/textinput"
 )
 
 // CreateStep represents the current step in the create wizard.
@@ -26,9 +28,13 @@ type CreateState struct {
 	Error          string
 
 	// Branch selector state (unified)
-	Branches     []string
-	BranchCursor int
-	BranchFilter string
+	Branches          []string
+	BranchCursor      int
+	BranchFilter      string // kept in sync with BranchFilterInput for business logic
+	BranchFilterInput textinput.Model
+
+	// Name input
+	NameInput textinput.Model
 
 	// Branch action state (split vs fork)
 	ActionChoice  int // 0 = split (use as-is), 1 = fork (new branch from it)
@@ -39,6 +45,24 @@ type CreateState struct {
 
 	// Creating state
 	Creating bool
+}
+
+// newBranchFilterInput creates a configured textinput for branch filtering.
+func newBranchFilterInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = "Filter: "
+	ti.Placeholder = "type to filter or create new"
+	ti.CharLimit = 100
+	return ti
+}
+
+// newNameInput creates a configured textinput for worktree naming.
+func newNameInput(placeholder string) textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = "Name: "
+	ti.Placeholder = placeholder
+	ti.CharLimit = 100
+	return ti
 }
 
 func renderCreate(s *CreateState, width int, spinnerView string) string {
@@ -104,13 +128,9 @@ func renderCreateName(s *CreateState) string {
 
 	fmt.Fprintf(&b, "Step 2 of 3: Name\n\n")
 
-	if s.Name == "" && s.NameSuggestion != "" {
-		b.WriteString("Name: " + Styles.DetailDim.Render(s.NameSuggestion) + "\n")
-	} else {
-		fmt.Fprintf(&b, "Name: %s█\n", s.Name)
-	}
+	b.WriteString(s.NameInput.View() + "\n")
 
-	effectiveName := s.Name
+	effectiveName := s.NameInput.Value()
 	if effectiveName == "" {
 		effectiveName = s.NameSuggestion
 	}
@@ -136,12 +156,13 @@ func renderCreateBranch(s *CreateState) string {
 
 	fmt.Fprintf(&b, "Step 1 of 3: Branch\n\n")
 
-	if s.BranchFilter != "" {
-		fmt.Fprintf(&b, "Filter: %s█\n\n", s.BranchFilter)
+	filter := s.BranchFilterInput.Value()
+	if filter != "" {
+		b.WriteString(s.BranchFilterInput.View() + "\n\n")
 	}
 
-	filtered := filteredBranches(s.Branches, s.BranchFilter)
-	showCreateNew := s.BranchFilter != "" && !exactBranchMatch(s.Branches, s.BranchFilter)
+	filtered := filteredBranches(s.Branches, filter)
+	showCreateNew := filter != "" && !exactBranchMatch(s.Branches, filter)
 	totalItems := len(filtered)
 	if showCreateNew {
 		totalItems++
@@ -150,15 +171,7 @@ func renderCreateBranch(s *CreateState) string {
 	if totalItems == 0 {
 		b.WriteString(Styles.DetailDim.Render("  (no branches found)") + "\n")
 	} else {
-		maxShow := 10
-		start := 0
-		if s.BranchCursor >= maxShow {
-			start = s.BranchCursor - maxShow + 1
-		}
-		end := start + maxShow
-		if end > totalItems {
-			end = totalItems
-		}
+		start, end := scrollWindow(totalItems, s.BranchCursor, 10)
 		for i := start; i < end; i++ {
 			cursor := "  "
 			if i == s.BranchCursor {
@@ -167,7 +180,7 @@ func renderCreateBranch(s *CreateState) string {
 			if i < len(filtered) {
 				b.WriteString(cursor + filtered[i] + "\n")
 			} else {
-				b.WriteString(cursor + "Create new branch: \"" + s.BranchFilter + "\"\n")
+				b.WriteString(cursor + "Create new branch: \"" + filter + "\"\n")
 			}
 		}
 		if end < totalItems {

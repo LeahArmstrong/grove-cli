@@ -157,5 +157,5 @@ func (s *Stepper) View(width int) string {
 		labelPos = colStart + styledWidth
 	}
 
-	return dotLine.String() + "\n" + labelLine.String()
+	return lipgloss.JoinVertical(lipgloss.Left, dotLine.String(), labelLine.String())
 }
