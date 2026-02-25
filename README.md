@@ -288,13 +288,14 @@ See [docs/TUI.md](docs/TUI.md) for the full reference.
 make build    # Build binary to bin/grove
 make test     # Run tests with race detection and coverage
 make lint     # Run golangci-lint + go vet + gofmt check
+make fmt      # Format code
 make install  # Install to $GOPATH/bin
 ```
 
 ### Testing
 
 ```bash
-make test-integration   # Integration tests (requires git, tmux)
+make test-integration   # Integration tests (requires git)
 make test-coverage      # Generate coverage.html
 make golden-diff        # Update golden files and show visual changes
 make test-fixture       # Create test fixture for live TUI testing

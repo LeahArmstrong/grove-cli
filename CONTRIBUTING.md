@@ -198,7 +198,6 @@ Before submitting, ensure:
 
 - [ ] Tests added/updated and passing
 - [ ] Documentation updated (README, code comments)
-- [ ] CHANGELOG.md updated (for features/fixes)
 - [ ] Code formatted (`make fmt`)
 - [ ] Linter passes (`make lint`)
 - [ ] Conventional commit message used
@@ -212,7 +211,7 @@ make build          # Build the binary
 make test           # Run all tests
 make test-verbose   # Run tests with verbose output
 make test-coverage  # Generate coverage report
-make test-integration  # Run integration tests (requires git, tmux)
+make test-integration  # Run integration tests (requires git)
 make lint           # Run linters
 make fmt            # Format code
 make clean          # Clean build artifacts
@@ -229,13 +228,13 @@ make tui-capture    # Capture live TUI state via tmux
 
 `make build` produces the binary at `bin/grove`. `make install` copies it to `$GOPATH/bin` and codesigns it on macOS.
 
-Release builds use `CGO_ENABLED=0` (via GoReleaser). Version information (`internal/version.Version`, `.Commit`, `.BuildDate`) is injected by ldflags at release time; dev builds show defaults (`0.2.0-dev`, `unknown`).
+Release builds use `CGO_ENABLED=0` (via GoReleaser). Version information (`internal/version.Version`, `.Commit`, `.BuildDate`) is injected by ldflags at release time; dev builds show defaults from `internal/version/version.go`.
 
 ### Test Infrastructure
 
 **Unit tests**: `make test` runs `go test -race -cover ./...` — the same command CI uses.
 
-**Integration tests**: `make test-integration` runs tests tagged with `//go:build integration`. These require git and tmux and test real git/tmux operations. They're slower and not included in the default `make test`.
+**Integration tests**: `make test-integration` runs tests tagged with `//go:build integration`. These require git and test real git operations. They're slower and not included in the default `make test`.
 
 **Golden file tests**: Visual regression tests for the TUI. Golden files capture expected terminal output and fail when the output changes unexpectedly.
 - `make golden-diff` — update golden files and show what changed (via `git diff`)
@@ -248,12 +247,12 @@ Release builds use `CGO_ENABLED=0` (via GoReleaser). Version information (`inter
 
 ### CI Pipeline
 
-CI runs on push to `main` and on PRs to `main`. Three jobs run in parallel:
+CI runs on push to `main` (and `copilot/**` branches) and on PRs to `main`. Three jobs run in parallel:
 
 | Job | What it does |
 |-----|-------------|
 | **Test** | `go test -race -cover ./...` |
-| **Lint** | golangci-lint v2.8 + `go vet` + `gofmt -s` check |
+| **Lint** | golangci-lint (version pinned in CI) + `go vet` + `gofmt -s` check |
 | **Build** | `make build` (binary compilation) |
 
 All three use Go 1.24 with module cache keyed by `go.sum`. All three must pass for a PR to merge.
