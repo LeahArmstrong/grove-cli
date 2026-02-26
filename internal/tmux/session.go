@@ -323,3 +323,70 @@ func parseIntOrZero(s string) int {
 	}
 	return i
 }
+
+// CreateSessionWithCommand creates a new detached tmux session running a specific command.
+// If command is empty, behaves identically to CreateSession (runs default shell).
+func CreateSessionWithCommand(name, path, command string) error {
+	if name == "" {
+		return fmt.Errorf("session name cannot be empty")
+	}
+
+	exists, err := SessionExists(name)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("session '%s' already exists", name)
+	}
+
+	args := []string{"new-session", "-d", "-s", name, "-c", path}
+	if command != "" {
+		args = append(args, command)
+	}
+
+	cmd := exec.Command("tmux", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %s: %w", string(output), err)
+	}
+
+	return nil
+}
+
+// DisplayPopup opens a tmux display-popup attached to an existing session.
+// Width and height are tmux percentage strings (e.g., "80%").
+func DisplayPopup(sessionName, width, height string) error {
+	if sessionName == "" {
+		return fmt.Errorf("session name cannot be empty")
+	}
+
+	if !IsInsideTmux() {
+		return fmt.Errorf("display-popup requires being inside tmux")
+	}
+
+	args := []string{"display-popup"}
+	if width != "" {
+		args = append(args, "-w", width)
+	}
+	if height != "" {
+		args = append(args, "-h", height)
+	}
+	args = append(args, "-E", fmt.Sprintf("tmux attach-session -t %s", sessionName))
+
+	cmd := exec.Command("tmux", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+// IsCommandRunning checks if a session's active pane is running a specific command.
+// Returns false if the session doesn't exist or pane info can't be retrieved.
+func IsCommandRunning(sessionName, command string) bool {
+	pane, err := GetPaneInfo(sessionName)
+	if err != nil {
+		return false
+	}
+	return pane.CurrentCommand == command
+}

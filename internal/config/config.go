@@ -12,6 +12,14 @@ type TestConfig struct {
 	Service string `toml:"service"`
 }
 
+// SessionConfig controls session command behavior for grove open
+type SessionConfig struct {
+	Command     string `toml:"command"`
+	Popup       bool   `toml:"popup"`
+	PopupWidth  string `toml:"popup_width"`
+	PopupHeight string `toml:"popup_height"`
+}
+
 // Config represents the complete grove configuration
 type Config struct {
 	ProjectName   string           `toml:"project_name"`
@@ -25,11 +33,13 @@ type Config struct {
 	Protection    ProtectionConfig `toml:"protection"`
 	TUI           TUIConfig        `toml:"tui"`
 	Test          TestConfig       `toml:"test"`
+	Session       SessionConfig    `toml:"session"`
 
 	// Runtime settings (from env vars, not persisted)
 	NoColor        bool `toml:"-"` // GROVE_NO_COLOR - disable colored output
 	Debug          bool `toml:"-"` // GROVE_DEBUG - enable debug logging
 	NonInteractive bool `toml:"-"` // GROVE_NONINTERACTIVE - disable prompts
+	AgentMode      bool `toml:"-"` // GROVE_AGENT_MODE - agent isolation mode
 }
 
 // TUIConfig controls TUI behavior preferences
@@ -73,6 +83,7 @@ type DockerPluginConfig struct {
 	Enabled   *bool                  `toml:"enabled"`
 	AutoStart *bool                  `toml:"auto_start"`
 	AutoStop  *bool                  `toml:"auto_stop"`
+	AutoUp    *bool                  `toml:"auto_up"`
 	Mode      string                 `toml:"mode"` // "" or "local" = local compose, "external" = external compose
 	External  *ExternalComposeConfig `toml:"external"`
 }
@@ -178,6 +189,7 @@ func loadFromPaths(cfg *Config, globalPath, projectPath string) (*Config, error)
 	cfg.NoColor = envBool("GROVE_NO_COLOR")
 	cfg.Debug = envBool("GROVE_DEBUG")
 	cfg.NonInteractive = envBool("GROVE_NONINTERACTIVE")
+	cfg.AgentMode = envBool("GROVE_AGENT_MODE")
 
 	// Validate the final configuration
 	if err := Validate(cfg); err != nil {
@@ -241,6 +253,9 @@ func mergeConfigs(base, override *Config) *Config {
 	if override.Plugins.Docker.AutoStop != nil {
 		result.Plugins.Docker.AutoStop = override.Plugins.Docker.AutoStop
 	}
+	if override.Plugins.Docker.AutoUp != nil {
+		result.Plugins.Docker.AutoUp = override.Plugins.Docker.AutoUp
+	}
 	if override.Plugins.Docker.Mode != "" {
 		result.Plugins.Docker.Mode = override.Plugins.Docker.Mode
 	}
@@ -282,6 +297,20 @@ func mergeConfigs(base, override *Config) *Config {
 	}
 	if override.Test.Service != "" {
 		result.Test.Service = override.Test.Service
+	}
+
+	// Merge session config
+	if override.Session.Command != "" {
+		result.Session.Command = override.Session.Command
+	}
+	if override.Session.Popup {
+		result.Session.Popup = override.Session.Popup
+	}
+	if override.Session.PopupWidth != "" {
+		result.Session.PopupWidth = override.Session.PopupWidth
+	}
+	if override.Session.PopupHeight != "" {
+		result.Session.PopupHeight = override.Session.PopupHeight
 	}
 
 	return &result
