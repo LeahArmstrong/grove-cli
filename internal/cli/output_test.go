@@ -88,3 +88,70 @@ func TestLabel_NoColor(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestFaint_NoColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	var buf bytes.Buffer
+	w := NewWriter(&buf, false)
+	Faint(w, "muted text")
+	if got := buf.String(); got != "muted text\n" {
+		t.Errorf("got %q, want %q", got, "muted text\n")
+	}
+}
+
+func TestBold_NoColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	var buf bytes.Buffer
+	w := NewWriter(&buf, false)
+	Bold(w, "bold text")
+	if got := buf.String(); got != "bold text\n" {
+		t.Errorf("got %q, want %q", got, "bold text\n")
+	}
+}
+
+func TestAccent_NoColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	w := NewWriter(&bytes.Buffer{}, false)
+	got := Accent(w, "accented")
+	if got != "accented" {
+		t.Errorf("expected plain text, got %q", got)
+	}
+}
+
+func TestStatusText_AllCategories(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	w := NewWriter(&bytes.Buffer{}, false)
+
+	tests := []struct {
+		status string
+		text   string
+	}{
+		// success
+		{"clean", "clean"},
+		{"ok", "ok"},
+		{"active", "active"},
+		{"attached", "attached"},
+		// warning
+		{"dirty", "dirty"},
+		{"warning", "warning"},
+		{"detached", "detached"},
+		// danger
+		{"stale", "stale"},
+		{"error", "error"},
+		{"fail", "fail"},
+		// muted
+		{"info", "info"},
+		{"none", "none"},
+		// unknown — returns plain text
+		{"unknown-status", "some text"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			got := StatusText(w, tt.status, tt.text)
+			if got != tt.text {
+				t.Errorf("StatusText(%q, %q) = %q, want plain %q", tt.status, tt.text, got, tt.text)
+			}
+		})
+	}
+}

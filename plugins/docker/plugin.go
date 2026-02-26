@@ -241,14 +241,22 @@ func buildSlotManager(cfg *config.Config) *SlotManager {
 // isAgentMode returns true when the agent mode env var is set and the config
 // has an enabled agent section.
 func isAgentMode(cfg *config.Config) bool {
-	if os.Getenv("GROVE_AGENT_MODE") != "1" {
-		return false
+	if cfg.AgentMode || os.Getenv("GROVE_AGENT_MODE") == "1" {
+		ext := cfg.Plugins.Docker.External
+		if ext == nil || ext.Agent == nil {
+			return false
+		}
+		return ext.Agent.Enabled != nil && *ext.Agent.Enabled
 	}
-	ext := cfg.Plugins.Docker.External
-	if ext == nil || ext.Agent == nil {
-		return false
+	return false
+}
+
+// isHeadless returns true when running in a non-interactive context.
+func isHeadless(cfg *config.Config) bool {
+	if cfg.AgentMode || cfg.NonInteractive {
+		return true
 	}
-	return ext.Agent.Enabled != nil && *ext.Agent.Enabled
+	return os.Getenv("GROVE_AGENT_MODE") == "1"
 }
 
 // Up starts containers for a worktree
