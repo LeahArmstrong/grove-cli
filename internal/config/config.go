@@ -58,8 +58,9 @@ type NamingConfig struct {
 
 // TmuxConfig controls tmux session behavior
 type TmuxConfig struct {
-	Mode   string `toml:"mode"`   // auto, manual, off
-	Prefix string `toml:"prefix"` // Prefix for tmux session names
+	Mode     string `toml:"mode"`      // auto, manual, off
+	Prefix   string `toml:"prefix"`    // Prefix for tmux session names
+	OnSwitch string `toml:"on_switch"` // reset (default), warn, ignore — directory drift behavior
 }
 
 // PluginsConfig controls plugin behavior
@@ -226,6 +227,9 @@ func mergeConfigs(base, override *Config) *Config {
 	}
 	if override.Tmux.Prefix != "" {
 		result.Tmux.Prefix = override.Tmux.Prefix
+	}
+	if override.Tmux.OnSwitch != "" {
+		result.Tmux.OnSwitch = override.Tmux.OnSwitch
 	}
 	// Merge plugin configs - only override if explicitly set (non-nil)
 	if override.Plugins.Docker.Enabled != nil {
