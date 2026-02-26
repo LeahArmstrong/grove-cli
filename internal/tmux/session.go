@@ -269,6 +269,52 @@ func GetSessionStatus(name string) string {
 	return "none"
 }
 
+// PaneInfo holds the current state of a session's active pane
+type PaneInfo struct {
+	CurrentPath    string
+	CurrentCommand string
+}
+
+// GetPaneInfo returns the current path and command for a session's active pane
+func GetPaneInfo(sessionName string) (*PaneInfo, error) {
+	cmd := exec.Command("tmux", "display-message", "-t", sessionName, "-p", "#{pane_current_path}|#{pane_current_command}")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pane info: %w", err)
+	}
+
+	parts := strings.SplitN(strings.TrimSpace(string(output)), "|", 2)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("unexpected pane info format")
+	}
+
+	return &PaneInfo{
+		CurrentPath:    parts[0],
+		CurrentCommand: parts[1],
+	}, nil
+}
+
+// IsShell returns true if the pane's current command is a known shell
+func (p *PaneInfo) IsShell() bool {
+	shells := map[string]bool{
+		"bash": true,
+		"zsh":  true,
+		"fish": true,
+		"sh":   true,
+	}
+	return shells[p.CurrentCommand]
+}
+
+// SendKeys sends keys to the active pane of a tmux session
+func SendKeys(sessionName string, keys string) error {
+	cmd := exec.Command("tmux", "send-keys", "-t", sessionName, keys, "Enter")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to send keys: %s: %w", string(output), err)
+	}
+	return nil
+}
+
 // parseIntOrZero attempts to parse an integer, returning 0 on error
 func parseIntOrZero(s string) int {
 	i, err := strconv.Atoi(s)

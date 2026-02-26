@@ -111,6 +111,11 @@ When using shell integration, this will also change your current directory.`,
 			}
 
 			if tmux.IsInsideTmux() {
+				// Detect and correct directory drift before switching
+				if exists {
+					handleDirectoryDrift(sessionName, targetTree.Path, cfg.Tmux.OnSwitch, stderr)
+				}
+
 				// Inside tmux: always switch-client regardless of mode
 				if err := tmux.SwitchSession(sessionName); err != nil {
 					return fmt.Errorf("failed to switch session: %w", err)
@@ -179,6 +184,32 @@ When using shell integration, this will also change your current directory.`,
 
 		return nil
 	}),
+}
+
+// handleDirectoryDrift detects if a tmux session's active pane has drifted
+// from the worktree root and corrects it based on the configured on_switch mode.
+func handleDirectoryDrift(sessionName, worktreePath, onSwitch string, stderr *cli.Writer) {
+	pane, err := tmux.GetPaneInfo(sessionName)
+	if err != nil {
+		return
+	}
+
+	if pane.CurrentPath == worktreePath {
+		return
+	}
+
+	if !pane.IsShell() {
+		return
+	}
+
+	switch onSwitch {
+	case "warn":
+		cli.Warning(stderr, "session directory drifted from %s", worktreePath)
+	case "ignore":
+		// Do nothing
+	default: // "reset" or ""
+		_ = tmux.SendKeys(sessionName, fmt.Sprintf("cd %q", worktreePath))
+	}
 }
 
 func init() {
