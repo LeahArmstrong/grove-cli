@@ -360,12 +360,12 @@ sequenceDiagram
     U->>R: grove rm <name> [--force --unprotect]
     R->>S: GetWorktree(name) -- check protection
     R->>W: GetCurrent() -- prevent self-removal
-    R->>TM: KillSession(sessionName)
     R->>W: Find(name) -- get branch
     R->>H: Executor.Execute(pre-remove)
     R->>H: Fire(pre-remove) -- plugin hooks
     R->>W: Remove(name) -- git worktree remove
     R->>S: RemoveWorktree(name)
+    R->>TM: KillSession(sessionName) -- after removal confirmed
     R->>G: Branch deletion (prompt/flag)
     R->>H: Executor.Execute(post-remove)
     R->>H: Fire(post-remove) -- plugin hooks

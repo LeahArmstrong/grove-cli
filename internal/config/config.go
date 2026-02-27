@@ -15,7 +15,7 @@ type TestConfig struct {
 // SessionConfig controls session command behavior for grove open
 type SessionConfig struct {
 	Command     string `toml:"command"`
-	Popup       bool   `toml:"popup"`
+	Popup       *bool  `toml:"popup"`
 	PopupWidth  string `toml:"popup_width"`
 	PopupHeight string `toml:"popup_height"`
 }
@@ -303,7 +303,7 @@ func mergeConfigs(base, override *Config) *Config {
 	if override.Session.Command != "" {
 		result.Session.Command = override.Session.Command
 	}
-	if override.Session.Popup {
+	if override.Session.Popup != nil {
 		result.Session.Popup = override.Session.Popup
 	}
 	if override.Session.PopupWidth != "" {

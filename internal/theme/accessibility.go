@@ -116,5 +116,6 @@ func HighContrastColorScheme() ColorScheme {
 		TextNormal: AdaptiveColor(p.TextNormal.Dark, p.TextNormal.Light),
 		TextBright: AdaptiveColor(p.TextBright.Dark, p.TextBright.Light),
 		TextMuted:  AdaptiveColor(p.TextMuted.Dark, p.TextMuted.Light),
+		TextDim:    AdaptiveColor(p.SurfaceDim.Dark, p.SurfaceDim.Light),
 	}
 }

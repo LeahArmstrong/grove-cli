@@ -238,7 +238,7 @@ func renderSync(s *SyncState, width int) string {
 		overlayWidth = 70
 	}
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 	innerWidth := contentWidth - len(indent)*2
 
 	var b strings.Builder

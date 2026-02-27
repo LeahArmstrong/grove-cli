@@ -371,7 +371,9 @@ func DisplayPopup(sessionName, width, height string) error {
 	if height != "" {
 		args = append(args, "-h", height)
 	}
-	args = append(args, "-E", fmt.Sprintf("tmux attach-session -t %s", sessionName))
+	// Session name is single-quoted to prevent shell injection. Tmux session
+	// names follow {project}-{name} and cannot contain single quotes.
+	args = append(args, "-E", fmt.Sprintf("tmux attach-session -t '%s'", sessionName))
 
 	cmd := exec.Command("tmux", args...)
 	cmd.Stdin = os.Stdin

@@ -85,6 +85,12 @@ func TestLocalStrategy_GetAutoStop_ExplicitValues(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			// AutoStop nil defaults to false (opposite of AutoStart which defaults to true)
+			name: "nil AutoStop defaults to false",
+			cfg:  &config.Config{},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {

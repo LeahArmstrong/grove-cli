@@ -263,6 +263,66 @@ func TestHasUnstagedChanges(t *testing.T) {
 	}
 }
 
+func TestApplyPatch_Empty(t *testing.T) {
+	dir := setupWIPTestRepo(t)
+	h := NewWIPHandler(dir)
+
+	if err := h.ApplyPatch(nil); err != nil {
+		t.Errorf("ApplyPatch(nil) expected nil error, got %v", err)
+	}
+	if err := h.ApplyPatch([]byte{}); err != nil {
+		t.Errorf("ApplyPatch([]) expected nil error, got %v", err)
+	}
+}
+
+func TestCreateAndApplyPatch(t *testing.T) {
+	dir := setupWIPTestRepo(t)
+
+	// Modify the tracked file to create WIP
+	if err := os.WriteFile(filepath.Join(dir, "tracked.txt"), []byte("patched content"), 0644); err != nil {
+		t.Fatalf("failed to write tracked.txt: %v", err)
+	}
+
+	h := NewWIPHandler(dir)
+
+	// Create patch from the WIP changes
+	patch, err := h.CreatePatch()
+	if err != nil {
+		t.Fatalf("CreatePatch() error = %v", err)
+	}
+	if len(patch) == 0 {
+		t.Fatal("CreatePatch() returned empty patch, expected non-empty")
+	}
+
+	// Discard working tree changes to simulate a clean state
+	discardCmd := exec.Command("git", "-C", dir, "checkout", "--", ".")
+	if out, err := discardCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git checkout -- . failed: %v\n%s", err, out)
+	}
+
+	// Verify the file is back to its original content
+	content, err := os.ReadFile(filepath.Join(dir, "tracked.txt"))
+	if err != nil {
+		t.Fatalf("failed to read tracked.txt after discard: %v", err)
+	}
+	if string(content) != "original" {
+		t.Fatalf("expected original content after discard, got %q", content)
+	}
+
+	// Apply the patch and verify the changes are restored
+	if err := h.ApplyPatch(patch); err != nil {
+		t.Fatalf("ApplyPatch() error = %v", err)
+	}
+
+	content, err = os.ReadFile(filepath.Join(dir, "tracked.txt"))
+	if err != nil {
+		t.Fatalf("failed to read tracked.txt after patch: %v", err)
+	}
+	if string(content) != "patched content" {
+		t.Errorf("ApplyPatch() restored %q, want %q", content, "patched content")
+	}
+}
+
 func TestHasUntrackedFiles(t *testing.T) {
 	tests := []struct {
 		name  string

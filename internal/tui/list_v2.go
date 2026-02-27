@@ -21,10 +21,10 @@ func ComputeDelegateWidthsV2(items []list.Item, width int) WorktreeDelegateV2 {
 		if !ok {
 			continue
 		}
-		if n := len([]rune(item.ShortName)); n > maxName {
+		if n := lipgloss.Width(item.ShortName); n > maxName {
 			maxName = n
 		}
-		if n := len([]rune(item.Branch)); n > maxBranch {
+		if n := lipgloss.Width(item.Branch); n > maxBranch {
 			maxBranch = n
 		}
 	}
@@ -251,7 +251,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	// Branch (primary identifier, rendered first without separator)
 	branchText := truncate(item.Branch, d.BranchWidth)
 	branch := branchStyle.Render(branchText)
-	branchLen := len([]rune(branchText))
+	branchLen := lipgloss.Width(branchText)
 
 	// Directory name (secondary, with separator; hidden at narrow widths)
 	nameStyle := withBg(Styles.NormalItem)
@@ -269,7 +269,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	if d.NameWidth > 0 {
 		nameText := truncate(item.ShortName, d.NameWidth)
 		namePart = sep + nameStyle.Render(nameText)
-		nameLen = sepLen + len([]rune(nameText))
+		nameLen = sepLen + lipgloss.Width(nameText)
 	}
 
 	// Compact indicators (↑N ↓N ~N)

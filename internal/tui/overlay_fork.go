@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/state"
@@ -38,6 +39,7 @@ type ForkState struct {
 	Step        ForkStep
 	Source      WorktreeItem
 	Name        string
+	NameInput   textinput.Model
 	WIPStrategy WIPStrategy
 	HasWIP      bool
 	WIPFiles    []string
@@ -48,12 +50,23 @@ type ForkState struct {
 	Stepper     *Stepper
 }
 
+// newForkNameInput creates a configured textinput for fork naming.
+func newForkNameInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = "Fork Name: "
+	ti.Placeholder = "enter fork name"
+	ti.CharLimit = 100
+	ti.Focus()
+	return ti
+}
+
 // NewForkState creates a new ForkState for the given source worktree.
 func NewForkState(source WorktreeItem) *ForkState {
 	return &ForkState{
-		Step:    ForkStepName,
-		Source:  source,
-		Stepper: NewStepper("Name", "WIP", "Confirm"),
+		Step:      ForkStepName,
+		Source:    source,
+		NameInput: newForkNameInput(),
+		Stepper:   NewStepper("Name", "WIP", "Confirm"),
 	}
 }
 
@@ -205,6 +218,7 @@ func (m Model) handleForkKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.forkState = nil
 			return m, nil
 		case key.Matches(msg, m.keys.Enter):
+			s.Name = s.NameInput.Value()
 			if s.Name == "" {
 				s.Err = fmt.Errorf("name cannot be empty")
 				return m, nil
@@ -229,16 +243,13 @@ func (m Model) handleForkKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			s.Step = ForkStepConfirm
 			s.Stepper.Current = 2
 			return m, nil
-		case msg.Code == tea.KeyBackspace:
-			if len(s.Name) > 0 {
-				s.Name = s.Name[:len(s.Name)-1]
-				s.Err = nil
-			}
-			return m, nil
-		case isPrintableText(msg.Text):
-			s.Name += msg.Text
+		default:
+			// Route remaining keys through the name textinput
+			var cmd tea.Cmd
+			s.NameInput, cmd = s.NameInput.Update(msg)
+			s.Name = s.NameInput.Value()
 			s.Err = nil
-			return m, nil
+			return m, cmd
 		}
 
 	case ForkStepWIP:
@@ -317,7 +328,7 @@ func renderFork(s *ForkState, width int) string {
 		overlayWidth = 70
 	}
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 	innerWidth := contentWidth - len(indent)*2
 
 	var b strings.Builder
@@ -346,8 +357,8 @@ func renderFork(s *ForkState, width int) string {
 		b.WriteString(indent + Styles.DetailLabel.Render("Source: ") + Styles.DetailValue.Render(s.Source.ShortName) + "\n")
 		b.WriteString(indent + Styles.DetailLabel.Render("Branch: ") + Styles.DetailValue.Render(s.Source.Branch) + "\n\n")
 
-		// Manual name input
-		b.WriteString(indent + "Fork Name: " + fmt.Sprintf("%s█\n", s.Name))
+		// Name input with textinput component
+		b.WriteString(indent + s.NameInput.View() + "\n")
 		b.WriteString("\n" + Styles.Footer.Render(indent+"[enter] next  [esc] cancel"))
 
 	case ForkStepWIP:

@@ -62,16 +62,9 @@ func TestTable_MaxWidth(t *testing.T) {
 	tbl.Render()
 
 	got := buf.String()
-	lines := strings.Split(got, "\n")
-	// Check the data line (skip header and separator)
-	if len(lines) >= 3 {
-		dataLine := lines[2]
-		if len(strings.TrimSpace(dataLine)) > 10 {
-			// Should be truncated
-			if !strings.Contains(dataLine, "…") {
-				t.Errorf("expected truncation with ellipsis, got %q", dataLine)
-			}
-		}
+	// The 14-char value must be truncated to fit MaxWidth 5, producing "very…"
+	if !strings.Contains(got, "…") {
+		t.Errorf("expected truncation with ellipsis '…', got %q", got)
 	}
 }
 

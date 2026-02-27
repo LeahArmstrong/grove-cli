@@ -1,21 +1,10 @@
 package tmux
 
 import (
-	"os"
 	"testing"
 )
 
 func TestIsInsideTmux(t *testing.T) {
-	// Save original env
-	originalTmux := os.Getenv("TMUX")
-	defer func() {
-		if originalTmux != "" {
-			_ = os.Setenv("TMUX", originalTmux)
-		} else {
-			_ = os.Unsetenv("TMUX")
-		}
-	}()
-
 	tests := []struct {
 		name     string
 		tmuxEnv  string
@@ -35,11 +24,7 @@ func TestIsInsideTmux(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.tmuxEnv != "" {
-				_ = os.Setenv("TMUX", tt.tmuxEnv)
-			} else {
-				_ = os.Unsetenv("TMUX")
-			}
+			t.Setenv("TMUX", tt.tmuxEnv)
 
 			result := IsInsideTmux()
 			if result != tt.expected {
@@ -273,14 +258,8 @@ func TestDisplayPopup_NotInsideTmux(t *testing.T) {
 		t.Skip("tmux not available")
 	}
 
-	// Ensure TMUX env is not set for this test
-	originalTmux := os.Getenv("TMUX")
-	_ = os.Unsetenv("TMUX")
-	defer func() {
-		if originalTmux != "" {
-			_ = os.Setenv("TMUX", originalTmux)
-		}
-	}()
+	// Ensure TMUX env is empty so IsInsideTmux() returns false
+	t.Setenv("TMUX", "")
 
 	err := DisplayPopup("any-session", "80%", "80%")
 	if err == nil {
@@ -441,13 +420,7 @@ func TestAttachSession_NonExistent(t *testing.T) {
 }
 
 func TestSwitchSession_NotInTmux(t *testing.T) {
-	originalTmux := os.Getenv("TMUX")
-	_ = os.Unsetenv("TMUX")
-	defer func() {
-		if originalTmux != "" {
-			_ = os.Setenv("TMUX", originalTmux)
-		}
-	}()
+	t.Setenv("TMUX", "")
 
 	err := SwitchSession("any-session")
 	if err == nil {
@@ -467,13 +440,7 @@ func TestSwitchSession_EmptyName(t *testing.T) {
 }
 
 func TestGetCurrentSession_NotInTmux(t *testing.T) {
-	originalTmux := os.Getenv("TMUX")
-	_ = os.Unsetenv("TMUX")
-	defer func() {
-		if originalTmux != "" {
-			_ = os.Setenv("TMUX", originalTmux)
-		}
-	}()
+	t.Setenv("TMUX", "")
 
 	_, err := GetCurrentSession()
 	if err == nil {
