@@ -474,7 +474,7 @@ func renderConfig(s *ConfigState, width int) string {
 		overlayWidth = 80
 	}
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 
 	var b strings.Builder
 

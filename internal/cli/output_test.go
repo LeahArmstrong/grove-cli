@@ -119,8 +119,9 @@ func TestAccent_NoColor(t *testing.T) {
 }
 
 func TestStatusText_AllCategories(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-	w := NewWriter(&bytes.Buffer{}, false)
+	// Use a color-enabled writer (isTTY=true) without NO_COLOR to exercise the
+	// styled code paths. We assert strings.Contains so ANSI wrappers don't break the check.
+	w := NewWriter(&bytes.Buffer{}, true)
 
 	tests := []struct {
 		status string
@@ -142,15 +143,15 @@ func TestStatusText_AllCategories(t *testing.T) {
 		// muted
 		{"info", "info"},
 		{"none", "none"},
-		// unknown — returns plain text
+		// unknown — returns plain text unchanged
 		{"unknown-status", "some text"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.status, func(t *testing.T) {
 			got := StatusText(w, tt.status, tt.text)
-			if got != tt.text {
-				t.Errorf("StatusText(%q, %q) = %q, want plain %q", tt.status, tt.text, got, tt.text)
+			if !strings.Contains(got, tt.text) {
+				t.Errorf("StatusText(%q, %q) = %q, want output containing %q", tt.status, tt.text, got, tt.text)
 			}
 		})
 	}

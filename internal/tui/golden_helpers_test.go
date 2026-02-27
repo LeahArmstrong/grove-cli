@@ -182,12 +182,15 @@ func withIssueData() testOpt {
 func withForkOverlay() testOpt {
 	return func(m *Model) {
 		source := makeTestItems(3)[1]
+		ni := newForkNameInput()
+		ni.SetValue("experiment")
 		m.activeView = ViewFork
 		m.forkState = &ForkState{
-			Step:    ForkStepConfirm,
-			Source:  source,
-			Name:    "experiment",
-			Stepper: NewStepper("Name", "WIP", "Confirm"),
+			Step:      ForkStepConfirm,
+			Source:    source,
+			Name:      "experiment",
+			NameInput: ni,
+			Stepper:   NewStepper("Name", "WIP", "Confirm"),
 		}
 		m.forkState.Stepper.Current = 2
 	}
@@ -259,5 +262,16 @@ func withHelpExpanded() testOpt {
 func withSortMode(mode SortMode) testOpt {
 	return func(m *Model) {
 		m.sortMode = mode
+	}
+}
+
+// withCompactMode switches the model to compact (V1) delegate.
+func withCompactMode() testOpt {
+	return func(m *Model) {
+		m.compactMode = true
+		d := ComputeDelegateWidths(m.list.Items(), m.list.Width())
+		m.listDelegate = d
+		m.list.SetDelegate(d)
+		m.updateLayout()
 	}
 }

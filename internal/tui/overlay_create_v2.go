@@ -27,8 +27,8 @@ func renderCreateV2(s *CreateState, width int, spinnerView string) string {
 	return ""
 }
 
-// huhOverlayIndent is the consistent left-padding for all content inside the create overlay.
-const huhOverlayIndent = "  "
+// overlayIndent is the consistent left-padding for all content inside overlays.
+const overlayIndent = "  "
 
 // indentBlock prepends indent to every line of a multi-line string.
 func indentBlock(s, indent string) string {
@@ -81,7 +81,7 @@ func renderCreateSpinnerV2(s *CreateState, spinnerView string) string {
 func renderCreateBranchSelectorV2(s *CreateState, width int) string {
 	overlayWidth := calcOverlayWidth(width)
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 	innerWidth := contentWidth - len(indent)*2
 
 	var b strings.Builder
@@ -137,7 +137,7 @@ func renderCreateBranchSelectorV2(s *CreateState, width int) string {
 func renderCreateNameV2(s *CreateState, width int) string {
 	overlayWidth := calcOverlayWidth(width)
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 	innerWidth := contentWidth - len(indent)*2
 
 	var b strings.Builder
@@ -192,7 +192,7 @@ func renderCreateNameV2(s *CreateState, width int) string {
 func renderCreateBranchActionV2(s *CreateState, width int) string {
 	overlayWidth := calcOverlayWidth(width)
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 	innerWidth := contentWidth - len(indent)*2
 
 	var b strings.Builder
@@ -269,7 +269,7 @@ func renderContextSummary(s *CreateState, width int) string {
 func renderCreateConfirmV2(s *CreateState, width int) string {
 	overlayWidth := calcOverlayWidth(width)
 	contentWidth := overlayWidth - 6
-	indent := huhOverlayIndent
+	indent := overlayIndent
 	innerWidth := contentWidth - len(indent)*2
 
 	var b strings.Builder

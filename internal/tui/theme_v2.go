@@ -161,7 +161,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		SelectedItem:  lipgloss.NewStyle().Bold(true).Foreground(cs.TextBright),
 		NormalItem:    lipgloss.NewStyle().Foreground(cs.TextNormal),
 		CurrentItem:   lipgloss.NewStyle().Foreground(cs.Secondary),
-		DimmedItem:    lipgloss.NewStyle().Foreground(theme.AdaptiveColor("#7F849C", "#64748B")),
+		DimmedItem:    lipgloss.NewStyle().Foreground(cs.TextDim),
 		ListCursor:    lipgloss.NewStyle().Foreground(cs.Info),
 		ListCursorDim: lipgloss.NewStyle(),
 
@@ -212,7 +212,7 @@ func NewStyleSet(cs ColorScheme) StyleSet {
 		// Help
 		HelpKey:  lipgloss.NewStyle().Foreground(cs.Primary).Bold(true),
 		HelpDesc: lipgloss.NewStyle().Foreground(cs.TextMuted),
-		HelpSep:  lipgloss.NewStyle().Foreground(cs.TextMuted).SetString(" · "),
+		HelpSep:  lipgloss.NewStyle().Foreground(cs.TextMuted),
 
 		// Input
 		InputBorder: lipgloss.NewStyle().

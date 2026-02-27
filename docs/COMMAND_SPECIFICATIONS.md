@@ -62,6 +62,9 @@ Grove must detect its execution context:
 | Outside tmux | `$TMUX` not set | Use `tmux attach-session` or spawn new terminal |
 | Inside grove shell wrapper | `$GROVE_SHELL` set | Can output `cd:` directives |
 | Direct binary execution | `$GROVE_SHELL` not set | Cannot change directory, print instructions instead |
+| TUI mode | `$GROVE_CD_FILE` set | TUI writes target path to file; shell wrapper reads and applies cd |
+
+**`GROVE_CD_FILE`:** For TUI invocations (`grove` with no args), the shell wrapper creates a temp file via `mktemp`, sets `GROVE_CD_FILE` to its path, and reads it after the TUI exits to perform the directory change. This is necessary because the TUI runs in alt-screen mode where stdout is not suitable for directive parsing.
 
 ### Project Context Detection
 
@@ -189,7 +192,6 @@ location = "sibling"  # default: sibling to project
 grove ls [flags]
 
 Flags:
-  -a, --all       Include frozen worktrees
   -p, --paths     Show full paths only (scriptable output)
   -j, --json      Output as JSON
   -q, --quiet     Names only, one per line
@@ -282,13 +284,9 @@ Arguments:
   name    Name for the new worktree (required)
 
 Flags:
-  -b, --branch <branch>    Branch to checkout (default: create new branch matching name)
-  -f, --from <ref>         Create branch from this ref (default: main/master)
-  -t, --template <name>    Use worktree template
-  -n, --no-switch          Don't switch to new worktree after creation
-      --no-tmux            Don't create tmux session
-      --no-docker          Skip Docker auto-start
-      --mirror <ref>       Create environment worktree tracking a remote branch
+  -j, --json           Output as JSON with switch_to field
+      --mirror <ref>   Create environment worktree tracking a remote branch (e.g., origin/main)
+      --no-docker      Skip Docker auto-start
 ```
 
 **Behavior:**
@@ -297,37 +295,32 @@ Flags:
    - Apply naming transformations
    - Check for existing worktree with same name
    
-2. **Determine branch:**
-   - If `--branch` specified: use that branch
-   - If branch exists: checkout existing branch
-   - If branch doesn't exist: create from `--from` or default branch
-   
-3. **Create worktree:**
+2. **Create worktree:**
+   - If `--mirror` specified: verify remote branch exists, create environment worktree tracking it
+   - Otherwise: create new worktree with branch matching the name
    ```bash
    git worktree add <path> <branch>
-   # or
-   git worktree add -b <new-branch> <path> <from-ref>
    ```
 
-4. **Create tmux session** (unless `--no-tmux`):
+3. **Symlink config** from main worktree to new worktree directory.
+
+4. **Register in state** (`AddWorktree`) with path, branch, created/accessed timestamps.
+
+5. **Create tmux session:**
    - Session name = `{project}-{name}`
    - Start in worktree directory
-   - Apply default window layout
-   
-5. **Generate .envrc** (if direnv plugin enabled):
-   - Set PORT based on allocation
-   - Set DATABASE_URL if configured
-   
-6. **Switch to new worktree** (unless `--no-switch`):
-   - If inside tmux: `tmux switch-client`
-   - If outside tmux: output `cd:` directive or instructions
+
+6. **Execute post-create hooks** (user-configured and plugin hooks).
+
+7. **Auto-start Docker** (unless `--no-docker`):
+   - Only runs when `shouldAutoDocker()` returns true: agent stacks configured (`plugins.docker.external.agent.enabled = true`) or `plugins.docker.auto_up = true`
+   - Calls `docker.Up()` for the new worktree path
 
 **Output (Success):**
 ```
-✓ Created worktree 'testing' at /Users/egg/Work/grove-cli-testing
-✓ Created branch 'testing' from 'main'
+✓ Created worktree 'testing'
 ✓ Created tmux session 'grove-cli-testing'
-✓ Switched to 'testing'
+✓ Docker stack started
 ```
 
 **Output (Already Exists):**
@@ -460,8 +453,8 @@ Arguments:
   name    Name of worktree to switch to (required)
 
 Flags:
-  -f, --force    Switch even if current worktree is dirty (stash changes)
-      --peek     Lightweight switch: skip hooks (no Docker side effects)
+  -j, --json   Output as JSON with switch_to field
+      --peek   Lightweight switch: skip hooks (no Docker side effects)
 ```
 
 **Behavior:**
@@ -469,27 +462,25 @@ Flags:
 1. **Find worktree:**
    - Search by short name first (within current project)
    - Fall back to full name match
-   - Support partial matching if unambiguous
+   - Error if worktree is stale (directory missing)
 
-2. **Check current worktree status:**
-   - If dirty and `dirty_handling = prompt`: Ask user
-   - If dirty and `dirty_handling = auto-stash`: Stash automatically
-   - If dirty and `dirty_handling = refuse`: Error unless `--force`
-
-3. **Handle tmux session:**
+2. **Handle tmux session:**
    - If session exists and inside tmux: `tmux switch-client -t {session}`
    - If session exists and outside tmux: `tmux attach -t {session}`
    - If session doesn't exist: Create it, then attach/switch
 
-4. **Change directory:**
-   - If inside grove shell wrapper: Output `cd:{path}` directive
-   - If direct execution: Include cd instruction in output
+3. **Fire pre-switch hooks** (unless `--peek`).
 
-5. **Fire hooks:**
-   - `pre-switch` on current worktree
-   - `post-switch` on target worktree
+4. **Switch tmux session** (if inside tmux): `tmux switch-client -t {session}`
 
-6. **Update "last" tracking:**
+5. **Fire post-switch hooks** (Docker start, etc.) before tmux switch so progress is visible in current session (unless `--peek`).
+
+6. **Change directory:**
+   - If inside tmux: session switch handles navigation
+   - If shell integration active: Output `cd:{path}` directive, and `tmux-attach:` directive in auto mode
+   - If direct execution: Print cd instructions
+
+7. **Update "last" tracking:**
    - Store current worktree as "last" for `grove last` command
 
 **Output (Inside tmux, via shell wrapper):**
@@ -517,22 +508,6 @@ cd:/Users/egg/Work/grove-cli-testing
 
 To attach: tmux attach -t grove-cli-testing
 To enter directory: cd /Users/egg/Work/grove-cli-testing
-```
-
-**Output (Dirty worktree, prompt mode):**
-```
-⚠ Current worktree has uncommitted changes:
-
-  M  src/main.go
-  ?? src/new_file.go
-
-What would you like to do?
-  [s] Stash changes and switch
-  [c] Commit changes first (opens editor)
-  [a] Abort switch
-  [f] Force switch (leave changes)
-
-Choice [s/c/a/f]: 
 ```
 
 **Output (Worktree not found):**
@@ -573,13 +548,24 @@ Please be more specific.
 | Partial name matches one | Switch to it (e.g., `w to test` → `testing` if unambiguous) |
 | Partial name matches multiple | Error with list of matches |
 | Frozen worktree | Auto-resume, then switch |
-| Session exists but wrong directory | Update session directory, then switch |
+| Session exists but wrong directory | Detect drift and correct per `tmux.on_switch` setting |
+
+**Directory Drift Detection:**
+
+When switching to a worktree whose tmux session already exists (inside tmux), grove detects if the session's active pane has drifted from the worktree root. Behavior is controlled by `tmux.on_switch` config:
+
+| `tmux.on_switch` | Behavior |
+|------------------|----------|
+| `"reset"` (default) | Send `cd "<worktree-path>"` to the session pane |
+| `"warn"` | Print a warning about the drift, leave directory unchanged |
+| `"ignore"` | Do nothing, leave directory unchanged |
+
+Drift is only corrected when the pane is a shell (not running a program).
 
 **Exit Codes:**
 - 0: Success
 - 1: Worktree not found
-- 2: Aborted by user (dirty handling)
-- 3: Other error
+- 2: Other error
 
 ---
 
@@ -1612,7 +1598,7 @@ Switch:
   dirty_handling:   prompt
 
 Naming:
-  pattern:          {project}-{name}
+  pattern:          {type}/{description}
   max_length:       50
 
 Tmux:

@@ -158,7 +158,9 @@ When using shell integration, this will also change your current directory.`,
 		// so the user sees Docker progress in the current session. After the
 		// tmux switch the old session's stderr is no longer visible.
 		if !toPeek {
-			cli.Step(stderr, "Starting services...")
+			if hooks.HasHooks(hooks.EventPostSwitch) {
+				cli.Step(stderr, "Starting services...")
+			}
 			if err := hooks.Fire(hooks.EventPostSwitch, hookCtx); err != nil {
 				cli.Warning(stderr, "post-switch hooks failed: %v", err)
 			}

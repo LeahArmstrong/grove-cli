@@ -54,8 +54,9 @@ Key patterns:
 - **ANSI-aware string measurement** — always use `lipgloss.Width(s)` not `len(s)` for visible width of styled text
 - **Style.Render()** for applying styles to text, not `Style.SetString()` + `Style.String()`
 - `internal/tui/theme_v2.go` — centralized `StyleSet` with semantic color scheme
-- `internal/tui/list_v2.go` — custom `list.ItemDelegate` with indicator/status columns
-- `internal/tui/list.go` — V1 table-style delegate with column headers
+- `internal/tui/list_v2.go` — **default** two-line delegate with indicator/status columns (`NewWorktreeDelegateV2`)
+- `internal/tui/list.go` — compact single-line V1 delegate with column headers (`NewWorktreeDelegate`)
+- The `v` key toggles between V2 (default) and V1 compact modes at runtime; can also be set permanently via `tui.compact_list = true` in config
 
 ## Code Style
 - Follow standard Go formatting (gofmt)

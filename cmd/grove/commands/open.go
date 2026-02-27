@@ -15,6 +15,7 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
+	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	openCommand  string
 	openNoPopup  bool
 	openJSON     bool
+	openNoDocker bool
 )
 
 func init() {
@@ -29,6 +31,7 @@ func init() {
 	openCmd.Flags().StringVar(&openCommand, "command", "", "Override session command")
 	openCmd.Flags().BoolVar(&openNoPopup, "no-popup", false, "Skip popup, use tmux switch/attach instead")
 	openCmd.Flags().BoolVarP(&openJSON, "json", "j", false, "Output as JSON")
+	openCmd.Flags().BoolVar(&openNoDocker, "no-docker", false, "Skip Docker auto-start")
 	rootCmd.AddCommand(openCmd)
 }
 
@@ -121,6 +124,58 @@ Examples:
 				}
 			}
 
+			// Execute per-project post-create hooks
+			hookExecutor, err := hooks.NewExecutor()
+			if err != nil {
+				if !openJSON {
+					cli.Warning(w, "Failed to load hooks config: %v", err)
+				}
+			} else if hookExecutor.HasHooksForEvent(hooks.EventPostCreate) {
+				hookCtx := &hooks.ExecutionContext{
+					Event:        hooks.EventPostCreate,
+					Worktree:     name,
+					WorktreeFull: projectName + "-" + name,
+					Branch:       branchName,
+					Project:      projectName,
+					MainPath:     ctx.ProjectRoot,
+					NewPath:      wt.Path,
+				}
+
+				if !openJSON {
+					cli.Step(w, "Running post-create hooks...")
+				}
+
+				if err := hookExecutor.Execute(hooks.EventPostCreate, hookCtx); err != nil {
+					if !openJSON {
+						cli.Warning(w, "Hook execution had errors: %v", err)
+					}
+				}
+			}
+
+			// Auto-start Docker when configured (unless --no-docker)
+			if !openNoDocker && shouldAutoDocker(ctx.Config) {
+				if !openJSON {
+					cli.Step(w, "Starting Docker stack...")
+				}
+				dockerPlugin := docker.New()
+				if ctx.Config.AgentMode {
+					dockerPlugin.SetIsolated(true)
+				}
+				if err := dockerPlugin.Init(ctx.Config); err != nil {
+					if !openJSON {
+						cli.Warning(w, "Docker init failed: %v", err)
+					}
+				} else if dockerPlugin.Enabled() {
+					if err := dockerPlugin.Up(wt.Path, true); err != nil {
+						if !openJSON {
+							cli.Warning(w, "Docker auto-start failed: %v", err)
+						}
+					} else if !openJSON {
+						cli.Success(w, "Docker stack started")
+					}
+				}
+			}
+
 			created = true
 			if !openJSON {
 				cli.Success(w, "Created worktree '%s'", name)
@@ -181,7 +236,7 @@ Examples:
 		}
 
 		// Step 3: Attach — popup or switch/attach
-		usePopup := ctx.Config.Session.Popup && !openNoPopup
+		usePopup := ctx.Config.Session.Popup != nil && *ctx.Config.Session.Popup && !openNoPopup
 
 		if usePopup && tmux.IsInsideTmux() {
 			width := ctx.Config.Session.PopupWidth

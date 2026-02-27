@@ -56,6 +56,7 @@ Examples:
 		}
 
 		w := cli.NewStdout()
+		stderr := cli.NewStderr()
 
 		name := args[0]
 		if name == "" {
@@ -90,8 +91,8 @@ Examples:
 			// Verify the remote branch exists
 			verifyCmd := exec.Command("git", "-C", ctx.ProjectRoot, "rev-parse", "--verify", newMirror)
 			if err := verifyCmd.Run(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: remote branch '%s' not found\n", newMirror)
-				fmt.Fprintf(os.Stderr, "Run 'git fetch' and verify the branch exists\n")
+				cli.Error(stderr, "remote branch '%s' not found", newMirror)
+				cli.Faint(stderr, "Run 'git fetch' and verify the branch exists")
 				os.Exit(exitcode.ResourceNotFound)
 			}
 
@@ -144,8 +145,8 @@ Examples:
 		}
 
 		if err := ctx.State.AddWorktree(name, wsState); err != nil {
-			fmt.Printf("warning: worktree created but state tracking failed: %v\n", err)
-			fmt.Println("run 'grove repair' to fix")
+			cli.Warning(w, "worktree created but state tracking failed: %v", err)
+			cli.Faint(w, "run 'grove repair' to fix")
 		}
 
 		projectName := mgr.GetProjectName()

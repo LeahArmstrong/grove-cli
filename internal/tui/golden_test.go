@@ -53,6 +53,15 @@ func TestGolden_Dashboard_SortModes(t *testing.T) {
 	}
 }
 
+func TestGolden_Dashboard_CompactMode(t *testing.T) {
+	for _, size := range []termSize{sizeStandard, sizeWide} {
+		t.Run(size.name, func(t *testing.T) {
+			m := goldenModel(t, size, withItems(5), withCompactMode())
+			golden.RequireEqual(t, []byte(m.viewString()))
+		})
+	}
+}
+
 func TestGolden_Dashboard_HelpExpanded(t *testing.T) {
 	for _, size := range []termSize{sizeStandard, sizeWide} {
 		t.Run(size.name, func(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 func TestDirective_NoANSI(t *testing.T) {
 	// Capture stdout
 	oldStdout := os.Stdout
+	t.Cleanup(func() { os.Stdout = oldStdout })
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("pipe failed: %v", err)
@@ -18,7 +19,6 @@ func TestDirective_NoANSI(t *testing.T) {
 	Directive("cd", "/some/path/to/worktree")
 
 	_ = w.Close()
-	os.Stdout = oldStdout
 
 	buf := make([]byte, 1024)
 	n, _ := r.Read(buf)
@@ -40,6 +40,7 @@ func TestDirective_NoANSI(t *testing.T) {
 
 func TestDirective_TmuxAttach_NoANSI(t *testing.T) {
 	oldStdout := os.Stdout
+	t.Cleanup(func() { os.Stdout = oldStdout })
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("pipe failed: %v", err)
@@ -49,7 +50,6 @@ func TestDirective_TmuxAttach_NoANSI(t *testing.T) {
 	Directive("tmux-attach", "grove-cli-feature")
 
 	_ = w.Close()
-	os.Stdout = oldStdout
 
 	buf := make([]byte, 1024)
 	n, _ := r.Read(buf)

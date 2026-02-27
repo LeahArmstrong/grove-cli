@@ -35,6 +35,7 @@ type ColorScheme struct {
 	TextNormal color.Color
 	TextBright color.Color
 	TextMuted  color.Color
+	TextDim    color.Color
 }
 
 // Colors is the global color scheme. Initialized respecting NO_COLOR.
@@ -67,6 +68,7 @@ func DefaultColorScheme() ColorScheme {
 		TextNormal: AdaptiveColor("#CDD6F4", "#1E293B"),
 		TextBright: AdaptiveColor("#FFFFFF", "#0F172A"),
 		TextMuted:  AdaptiveColor("#9399B2", "#475569"),
+		TextDim:    AdaptiveColor("#7F849C", "#64748B"),
 	}
 }
 

@@ -276,7 +276,7 @@ func handleBranchDeletion(repoPath, branch string, forceDelete, forceUnmerged bo
 
 	header := fmt.Sprintf("Branch '%s':", branch)
 
-	// Ask for confirmation
+	// Ask for confirmation. Default is false (keep branch) — safer when Enter is pressed accidentally.
 	confirmed, err := cli.ConfirmWithDetails(w, header, details, "Delete branch?", false)
 	if err != nil {
 		// Non-interactive - provide guidance

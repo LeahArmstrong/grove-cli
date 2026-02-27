@@ -1,7 +1,7 @@
 [2m [1m[1mtest-project[m  ·  3 worktrees  ·  on root                                ● root[m [m
 [2m                                                                                [m
 [2m 1 ❯ root ────────────────────────────────────────────────────────────── 2h ago [m
-[2m       [38;2;127;132;156mtest commit for root[m                                                     [m
+[2m       test commit for root                                                     [m
              ╭───────────────────────────────────────────────────╮
              │                                                   │
              │  [1mDelete Worktree[m                                  │
@@ -21,4 +21,4 @@
 [2m                                                                                [m
 [2m                                                                                [m
 [2m                                                                                [m
-[2m                                                                                [m
+[2m  [1my[m confirm · [1mn[m cancel · [1mspace[m toggle branch                                    [m
