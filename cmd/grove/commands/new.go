@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/grove"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
@@ -18,29 +19,42 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
+	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
 var (
-	newJSON   bool
-	newMirror string // Remote branch to mirror (e.g., "origin/main")
+	newJSON     bool
+	newMirror   string // Remote branch to mirror (e.g., "origin/main")
+	newNoDocker bool   // Skip auto-starting Docker
 )
 
 var newCmd = &cobra.Command{
-	Use:   "new <name>",
-	Short: "Create a new worktree and tmux session",
+	Use:     "new <name>",
+	Aliases: []string{"spawn"},
+	Short:   "Create a new worktree and tmux session",
 	Long: `Create a new git worktree with the specified name and create a tmux session for it.
 
 The worktree will be created in the parent directory of the current repository.
 A new branch with the same name will be created automatically.
 
+When Docker agent stacks are configured, containers start automatically.
+Use --no-docker to skip Docker auto-start.
+
 Use --mirror to create an environment worktree that tracks a remote branch.
 Environment worktrees are read-only and can be synced with 'grove sync'.
 
 Examples:
-  grove new feature-auth          # Create new worktree with branch feature-auth
-  grove new staging --mirror origin/main  # Create environment worktree tracking origin/main`,
+  grove new feature-auth                  # Create worktree + tmux + Docker
+  grove new feature-auth --no-docker      # Skip Docker auto-start
+  grove spawn feature-x                   # Alias (implies --json output)
+  grove new staging --mirror origin/main  # Environment worktree tracking origin/main`,
 	Args: cobra.ExactArgs(1),
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		// spawn alias implies JSON output
+		if cmd.CalledAs() == "spawn" {
+			newJSON = true
+		}
+
 		w := cli.NewStdout()
 
 		name := args[0]
@@ -189,6 +203,30 @@ Examples:
 			}
 		}
 
+		// Auto-start Docker when configured (unless --no-docker)
+		if !newNoDocker && shouldAutoDocker(ctx.Config) {
+			if !newJSON {
+				cli.Step(w, "Starting Docker stack...")
+			}
+			dockerPlugin := docker.New()
+			if ctx.Config.AgentMode {
+				dockerPlugin.SetIsolated(true)
+			}
+			if err := dockerPlugin.Init(ctx.Config); err != nil {
+				if !newJSON {
+					cli.Warning(w, "Docker init failed: %v", err)
+				}
+			} else if dockerPlugin.Enabled() {
+				if err := dockerPlugin.Up(wt.Path, true); err != nil {
+					if !newJSON {
+						cli.Warning(w, "Docker auto-start failed: %v", err)
+					}
+				} else if !newJSON {
+					cli.Success(w, "Docker stack started")
+				}
+			}
+		}
+
 		// JSON output mode
 		if newJSON {
 			result := output.NewWorktreeResult{
@@ -206,8 +244,32 @@ Examples:
 	}),
 }
 
+// shouldAutoDocker returns true when Docker should be auto-started on grove new.
+// Enabled by default when agent stacks are configured, or explicitly via auto_up.
+func shouldAutoDocker(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+
+	// Explicit auto_up setting takes precedence
+	if cfg.Plugins.Docker.AutoUp != nil {
+		return *cfg.Plugins.Docker.AutoUp
+	}
+
+	// Default: auto-start when agent stacks are configured and enabled
+	if cfg.IsExternalDockerMode() {
+		ext := cfg.Plugins.Docker.External
+		if ext != nil && ext.Agent != nil && ext.Agent.Enabled != nil && *ext.Agent.Enabled {
+			return true
+		}
+	}
+
+	return false
+}
+
 func init() {
 	newCmd.Flags().BoolVarP(&newJSON, "json", "j", false, "Output as JSON with switch_to field")
 	newCmd.Flags().StringVar(&newMirror, "mirror", "", "Create environment worktree tracking a remote branch (e.g., origin/main)")
+	newCmd.Flags().BoolVar(&newNoDocker, "no-docker", false, "Skip Docker auto-start")
 	rootCmd.AddCommand(newCmd)
 }

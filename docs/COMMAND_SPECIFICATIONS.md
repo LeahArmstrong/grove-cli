@@ -13,6 +13,7 @@ This document provides exhaustive specifications for each grove command. Every b
 3. [Core Commands](#core-commands)
    - [grove ls](#grove-ls)
    - [grove new](#grove-new)
+   - [grove open](#grove-open)
    - [grove to](#grove-to)
    - [grove rm](#grove-rm)
    - [grove here](#grove-here)
@@ -25,7 +26,7 @@ This document provides exhaustive specifications for each grove command. Every b
    - [grove down](#grove-down)
    - [grove logs](#grove-logs)
    - [grove restart](#grove-restart)
-   - [grove agent-status](#grove-agent-status)
+   - [grove ps](#grove-ps)
 6. [Worktree Flow Commands](#worktree-flow-commands)
    - [grove fork](#grove-fork)
    - [grove sync](#grove-sync)
@@ -269,7 +270,9 @@ NAME            BRANCH          STATUS     TMUX        PATH
 
 ### grove new
 
-**Purpose:** Create a new worktree with associated tmux session.
+**Purpose:** Create a new worktree with associated tmux session and Docker stack.
+
+**Aliases:** `spawn` (implies `--json` output)
 
 **Usage:**
 ```
@@ -284,6 +287,8 @@ Flags:
   -t, --template <name>    Use worktree template
   -n, --no-switch          Don't switch to new worktree after creation
       --no-tmux            Don't create tmux session
+      --no-docker          Skip Docker auto-start
+      --mirror <ref>       Create environment worktree tracking a remote branch
 ```
 
 **Behavior:**
@@ -367,6 +372,82 @@ To remove it:    grove rm testing
 
 ---
 
+### grove open
+
+**Purpose:** Open a worktree session — create if needed, launch configured command, attach.
+
+**Usage:**
+```
+grove open <name> [flags]
+
+Arguments:
+  name    Name of worktree to open (required)
+
+Flags:
+      --no-create     Only attach to existing worktree, error if not found
+      --command <cmd>  Override session command
+      --no-popup       Skip popup, use tmux switch/attach instead
+  -j, --json           Output as JSON
+```
+
+**Behavior:**
+
+1. **Ensure worktree exists:**
+   - If worktree found: proceed
+   - If not found and `--no-create` not set: create worktree (same as `grove new`)
+   - If not found and `--no-create` set: error
+
+2. **Ensure tmux session exists:**
+   - Create session with configured command (from `[session]` config or `--command`)
+   - If session already exists: check if command is running
+
+3. **Launch configured command:**
+   - If session has a shell and command not running: `tmux send-keys` the command
+   - If command already running: skip (idempotent)
+
+4. **Attach:**
+   - If `popup = true` in config and inside tmux: `tmux display-popup`
+   - If inside tmux: `tmux switch-client`
+   - If outside tmux: `tmux attach-session`
+
+**Configuration:**
+```toml
+[session]
+command = "claude"     # What to run in sessions (default: "" = $SHELL)
+popup = true           # Use tmux display-popup for grove open
+popup_width = "80%"
+popup_height = "80%"
+```
+
+**Output (New worktree):**
+```
+✓ Created worktree 'feature-x'
+✓ Created session 'grove-cli-feature-x' running 'claude'
+```
+
+**Output (Existing worktree, reattach):**
+```
+✓ Launched 'claude' in existing session
+```
+*Popup opens or session switches*
+
+**Edge Cases:**
+
+| Scenario | Behavior |
+|----------|----------|
+| Worktree exists, session exists, command running | Reattach only (fully idempotent) |
+| Worktree exists, no tmux session | Create session and launch |
+| No `[session]` config | Opens shell session (same as `grove to`) |
+| `--no-create` and worktree missing | Error with suggestion |
+| Tmux not available | Emit cd directive, skip session management |
+| Popup outside tmux | Fall back to tmux attach |
+
+**Exit Codes:**
+- 0: Success
+- 1: Worktree not found (with `--no-create`)
+
+---
+
 ### grove to
 
 **Purpose:** Switch to an existing worktree, activating its tmux session.
@@ -380,6 +461,7 @@ Arguments:
 
 Flags:
   -f, --force    Switch even if current worktree is dirty (stash changes)
+      --peek     Lightweight switch: skip hooks (no Docker side effects)
 ```
 
 **Behavior:**
@@ -963,64 +1045,71 @@ Arguments:
 
 ---
 
-### grove agent-status
+### grove ps
 
-**Purpose:** Show active isolated Docker stacks.
+**Purpose:** Show active Docker stacks.
+
+**Aliases:** `agent-status` (hidden, backward compatibility)
 
 **Usage:**
 ```
-grove agent-status [flags]
+grove ps [flags]
 
 Flags:
-  -j, --json    Output as JSON
+  -j, --json    Output as JSON (includes compose project names)
 ```
 
 **Behavior:**
 
-1. Read isolated stack state from `.grove/agent-slots/`
-2. For each active slot, check container status via Docker
-3. Display results
+1. Read stack state from slot manager
+2. Display results with `#N` reference IDs and URLs
 
 **Output (Default):**
 ```
-SLOT  PROJECT                    STATUS   PORTS
-1     myapp-feature-x-slot-1     running  3101, 3111
-2     myapp-feature-x-slot-2     running  3102, 3112
+STACKS (2/5)
+
+  #1  feature-x      http://localhost:3101
+  #2  bugfix-y       http://localhost:3102
 ```
 
 **Output (No active stacks):**
 ```
-No active isolated stacks.
+ℹ No active stacks
+```
 
-Start one with: grove up --isolated
+**Output (Not configured):**
+```
+Stacks not configured for this project
+
+To enable, add to .grove/config.toml:
+
+  [plugins.docker.external.agent]
+  enabled = true
+  services = ["app"]
+  template_path = "agent-stacks/template.yml"
 ```
 
 **Output (--json):**
 ```json
-{
-  "slots": [
-    {
-      "slot": 1,
-      "project": "myapp-feature-x-slot-1",
-      "status": "running",
-      "ports": [3101, 3111],
-      "created_at": "2025-01-15T10:30:00Z"
-    }
-  ]
-}
+[
+  {
+    "slot": 1,
+    "worktree": "feature-x",
+    "composeProject": "myapp-agent-1",
+    "url": "http://localhost:3101"
+  }
+]
 ```
 
 **Edge Cases:**
 
 | Scenario | Behavior |
 |----------|----------|
-| Docker plugin not configured | Error: "docker plugin not enabled" |
-| Agent slots not configured | Error: "isolated stacks not configured. Add [plugins.docker.agent] to config" |
-| Stale slot (containers gone) | Show with status: `stale` and suggest `grove down --slot N` |
+| Stacks not configured | Help text with config example |
+| No active stacks | Info message |
 
 **Exit Codes:**
 - 0: Success
-- 1: Not configured
 
 ---
 

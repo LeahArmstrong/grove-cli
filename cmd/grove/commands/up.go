@@ -61,18 +61,18 @@ Examples:
 			return fmt.Errorf("--isolated requires agent stack configuration\n\nAdd to .grove/config.toml:\n\n  [plugins.docker.external.agent]\n  enabled = true\n  services = [\"app\"]\n  template_path = \"agent-stacks/template.yml\"")
 		}
 
-		// Start containers
+		// Start containers — no spinner here: docker compose writes its own
+		// progress to stderr, and wrapping it in Bubbletea causes flashing.
 		if upDetach {
-			if err := cli.Spin("Starting containers...", func() error {
-				return plugin.Up(cwd, true)
-			}); err != nil {
+			cli.Step(stderr, "Starting containers...")
+			if err := plugin.Up(cwd, true); err != nil {
 				return fmt.Errorf("failed to start containers: %w", err)
 			}
 			if !upIsolated {
-				cli.Success(w, "Containers started in detached mode")
+				cli.Success(w, "Containers started")
 			}
 		} else {
-			cli.Header(stderr, "Starting containers")
+			cli.Step(stderr, "Starting containers...")
 			if err := plugin.Up(cwd, false); err != nil {
 				return fmt.Errorf("failed to start containers: %w", err)
 			}

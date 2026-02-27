@@ -19,7 +19,7 @@ grove() {
         to|last|fork|fetch|attach)
             # Capture output and parse for cd:/tmux-attach: directives
             local output exit_code
-            output=$(GROVE_SHELL=1 "$__GROVE_BIN" "$@" 2>&1)
+            output=$(GROVE_SHELL=1 "$__GROVE_BIN" "$@")
             exit_code=$?
 
             local should_cd=0
@@ -100,6 +100,8 @@ _grove_completion() {
         'test:Run tests in a worktree'
         'config:Show configuration'
         'doctor:Check system health and configuration'
+        'open:Open a worktree session'
+        'ps:Show active stacks'
         'agent-status:Show active isolated stacks'
         'version:Show version'
         'install:Generate shell integration'
@@ -109,7 +111,7 @@ _grove_completion() {
         _describe 'command' commands
     elif (( CURRENT == 3 )); then
         case "${words[2]}" in
-            to|rm|compare|sync|test|apply|attach)
+            to|rm|compare|sync|test|apply|attach|open)
                 _describe 'worktree' worktrees
                 ;;
             install)
