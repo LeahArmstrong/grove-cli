@@ -41,7 +41,7 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
-			m.err = fmt.Errorf("operation cancelled")
+			m.err = fmt.Errorf("operation canceled")
 			m.done = true
 			return m, tea.Quit
 		}

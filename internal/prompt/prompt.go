@@ -71,7 +71,7 @@ func IsInteractive() bool {
 }
 
 // ConfirmBatch asks for confirmation to process multiple items
-// Returns: keepAll, deleteAll, cancelled, error
+// Returns: keepAll, deleteAll, canceled, error
 func ConfirmBatch(items []string, itemType string) (keepAll bool, deleteAll bool, err error) {
 	if !IsInteractive() {
 		return true, false, fmt.Errorf("not an interactive terminal; use explicit flags")

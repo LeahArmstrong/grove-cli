@@ -304,7 +304,7 @@ func injectBorderTitle(rendered, title string) string {
 		return rendered
 	}
 
-	// Re-apply the border colour to the spliced segments
+	// Re-apply the border color to the spliced segments
 	borderColor := Styles.DetailBorder.GetBorderTopForeground()
 	borderStyle := lipgloss.NewStyle().Foreground(borderColor)
 

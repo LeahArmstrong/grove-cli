@@ -170,7 +170,7 @@ Examples:
 		var response string
 		_, _ = fmt.Scanln(&response)
 		if response != "yes" {
-			fmt.Println("Cancelled")
+			fmt.Println("Canceled")
 			os.Exit(exitcode.UserCancelled)
 		}
 
