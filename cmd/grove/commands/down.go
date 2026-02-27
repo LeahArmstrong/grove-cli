@@ -46,10 +46,10 @@ Examples:
 			return fmt.Errorf("failed to initialize docker plugin: %w", err)
 		}
 
-		// Stop containers
-		if err := cli.Spin("Stopping containers...", func() error {
-			return plugin.Down(cwd)
-		}); err != nil {
+		// Stop containers — no spinner: docker compose writes its own progress
+		stderr := cli.NewStderr()
+		cli.Step(stderr, "Stopping containers...")
+		if err := plugin.Down(cwd); err != nil {
 			return fmt.Errorf("failed to stop containers: %w", err)
 		}
 

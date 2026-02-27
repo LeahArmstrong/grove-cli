@@ -251,14 +251,6 @@ func isAgentMode(cfg *config.Config) bool {
 	return false
 }
 
-// isHeadless returns true when running in a non-interactive context.
-func isHeadless(cfg *config.Config) bool {
-	if cfg.AgentMode || cfg.NonInteractive {
-		return true
-	}
-	return os.Getenv("GROVE_AGENT_MODE") == "1"
-}
-
 // Up starts containers for a worktree
 func (p *Plugin) Up(worktreePath string, detach bool) error {
 	if p.strategy == nil {

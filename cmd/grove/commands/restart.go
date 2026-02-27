@@ -52,14 +52,14 @@ Examples:
 			return fmt.Errorf("failed to initialize docker plugin: %w", err)
 		}
 
-		// Restart service(s)
-		spinMsg := "Restarting containers..."
+		// Restart service(s) — no spinner: docker compose writes its own progress
+		stderr := cli.NewStderr()
 		if service != "" {
-			spinMsg = fmt.Sprintf("Restarting %s...", service)
+			cli.Step(stderr, "Restarting %s...", service)
+		} else {
+			cli.Step(stderr, "Restarting containers...")
 		}
-		if err := cli.Spin(spinMsg, func() error {
-			return plugin.Restart(cwd, service)
-		}); err != nil {
+		if err := plugin.Restart(cwd, service); err != nil {
 			return fmt.Errorf("failed to restart: %w", err)
 		}
 
