@@ -1197,7 +1197,7 @@ cd:/Users/egg/Work/grove-cli-hotfix
 
 **Exit Codes:**
 - 0: Success
-- 1: User cancelled (WIP prompt)
+- 1: User canceled (WIP prompt)
 - 2: Branch already exists
 - 3: Git operation failed
 

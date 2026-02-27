@@ -136,7 +136,7 @@ Examples:
 					"Cancel",
 				})
 				if err != nil {
-					cli.Info(w, "Cancelled")
+					cli.Info(w, "Canceled")
 					os.Exit(exitcode.UserCancelled)
 				}
 
@@ -148,7 +148,7 @@ Examples:
 				case "Leave in current":
 					forkNoWIP = true
 				case "Cancel":
-					cli.Info(w, "Cancelled")
+					cli.Info(w, "Canceled")
 					os.Exit(exitcode.UserCancelled)
 				}
 			}
