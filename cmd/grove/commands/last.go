@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -98,9 +97,7 @@ var lastCmd = &cobra.Command{
 				Branch:   targetTree.Branch,
 				Path:     targetTree.Path,
 			}
-			data, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Println(string(data))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		// Skip cd directive when tmux switch already moved the user

@@ -83,8 +83,8 @@ Priority 3: Root directory name
 
 **Example:**
 ```
-/Users/egg/Work/grove-cli/.git  →  project = "grove-cli"
-/Users/egg/Work/my-app/.grove/  →  project = (from config or "my-app")
+~/projects/grove-cli/.git  →  project = "grove-cli"
+~/projects/my-app/.grove/  →  project = (from config or "my-app")
 ```
 
 ### Worktree Naming Convention
@@ -165,7 +165,7 @@ Examples:
 Worktrees are created as **siblings** to the main project directory:
 
 ```
-/Users/egg/Work/
+~/projects/
 ├── grove-cli/              ← main project (where you run commands)
 ├── grove-cli-testing/      ← worktree created by `w new testing`
 ├── grove-cli-feature-auth/ ← worktree created by `w new feature-auth`
@@ -214,10 +214,10 @@ Flags:
 ```
 NAME            BRANCH          STATUS     TMUX        PATH
 ────────────────────────────────────────────────────────────────────────
-• main          main            clean      attached    /Users/egg/Work/grove-cli
-  testing       testing         clean      detached    /Users/egg/Work/grove-cli-testing
-  feature-auth  feature/auth    dirty      none        /Users/egg/Work/grove-cli-feature-auth
-  hotfix        main            clean      frozen      /Users/egg/Work/grove-cli-hotfix
+• main          main            clean      attached    ~/projects/grove-cli
+  testing       testing         clean      detached    ~/projects/grove-cli-testing
+  feature-auth  feature/auth    dirty      none        ~/projects/grove-cli-feature-auth
+  hotfix        main            clean      frozen      ~/projects/grove-cli-hotfix
 ```
 
 **Column Definitions:**
@@ -230,9 +230,9 @@ NAME            BRANCH          STATUS     TMUX        PATH
 
 **Output Format (--paths):**
 ```
-/Users/egg/Work/grove-cli
-/Users/egg/Work/grove-cli-testing
-/Users/egg/Work/grove-cli-feature-auth
+~/projects/grove-cli
+~/projects/grove-cli-testing
+~/projects/grove-cli-feature-auth
 ```
 
 **Output Format (--json):**
@@ -245,7 +245,7 @@ NAME            BRANCH          STATUS     TMUX        PATH
       "name": "main",
       "fullName": "grove-cli",
       "branch": "main",
-      "path": "/Users/egg/Work/grove-cli",
+      "path": "~/projects/grove-cli",
       "status": "clean",
       "tmux": "attached",
       "frozen": false,
@@ -327,7 +327,7 @@ Flags:
 ```
 ✗ Worktree 'testing' already exists
 
-  Path:   /Users/egg/Work/grove-cli-testing
+  Path:   ~/projects/grove-cli-testing
   Branch: testing
   Status: clean
 
@@ -338,7 +338,7 @@ To remove it:    grove rm testing
 
 **Output (Branch Exists, No Worktree):**
 ```
-✓ Created worktree 'feature-auth' at /Users/egg/Work/grove-cli-feature-auth
+✓ Created worktree 'feature-auth' at ~/projects/grove-cli-feature-auth
 ✓ Checked out existing branch 'feature/auth'
 ✓ Created tmux session 'grove-cli-feature-auth'
 ```
@@ -498,7 +498,7 @@ Flags:
 **Output (Outside tmux, via shell wrapper):**
 ```
 ✓ Attached to tmux session 'grove-cli-testing'
-cd:/Users/egg/Work/grove-cli-testing
+cd:~/projects/grove-cli-testing
 ```
 *New tmux client opens, shell changes directory after*
 
@@ -507,7 +507,7 @@ cd:/Users/egg/Work/grove-cli-testing
 ✓ Tmux session 'grove-cli-testing' ready
 
 To attach: tmux attach -t grove-cli-testing
-To enter directory: cd /Users/egg/Work/grove-cli-testing
+To enter directory: cd ~/projects/grove-cli-testing
 ```
 
 **Output (Worktree not found):**
@@ -698,7 +698,7 @@ Flags:
 Worktree: testing
 Project:  grove-cli
 Branch:   testing
-Path:     /Users/egg/Work/grove-cli-testing
+Path:     ~/projects/grove-cli-testing
 Commit:   abc1234 (2 hours ago) Fix authentication bug
 Status:   clean
 Tmux:     attached (grove-cli-testing)
@@ -710,7 +710,7 @@ Docker:   running (3 containers)
 Worktree: testing
 Project:  grove-cli
 Branch:   testing
-Path:     /Users/egg/Work/grove-cli-testing
+Path:     ~/projects/grove-cli-testing
 Commit:   abc1234 (2 hours ago) Fix authentication bug
 Status:   dirty
           M  src/auth.go
@@ -731,7 +731,7 @@ testing
   "fullName": "grove-cli-testing",
   "project": "grove-cli",
   "branch": "testing",
-  "path": "/Users/egg/Work/grove-cli-testing",
+  "path": "~/projects/grove-cli-testing",
   "commit": {
     "hash": "abc1234def5678",
     "shortHash": "abc1234",
@@ -755,7 +755,7 @@ testing
 ```
 Not in a grove-managed worktree
 
-Current directory: /Users/egg/Downloads
+Current directory: ~/Downloads
 
 To see available worktrees: grove ls
 To create a new worktree: grove new <name>
@@ -1170,7 +1170,7 @@ Choice [1-4]:
 ✓ Created worktree 'hotfix' with branch 'main-hotfix'
 ✓ Moved uncommitted changes to fork
 ✓ Created tmux session 'grove-cli-hotfix'
-cd:/Users/egg/Work/grove-cli-hotfix
+cd:~/projects/grove-cli-hotfix
 ```
 
 **Output (--json):**
@@ -1178,10 +1178,10 @@ cd:/Users/egg/Work/grove-cli-hotfix
 {
   "name": "hotfix",
   "branch": "main-hotfix",
-  "path": "/Users/egg/Work/grove-cli-hotfix",
+  "path": "~/projects/grove-cli-hotfix",
   "parent": "main",
   "created": true,
-  "switch_to": "/Users/egg/Work/grove-cli-hotfix"
+  "switch_to": "~/projects/grove-cli-hotfix"
 }
 ```
 
@@ -1345,7 +1345,7 @@ No differences found
     {
       "sha": "abc1234...",
       "message": "feat: add user authentication",
-      "author": "Dev User",
+      "author": "Jane Dev",
       "age": "2 hours ago"
     }
   ],
@@ -1587,7 +1587,7 @@ Flags:
 Configuration for 'grove-cli'
 
 Global: ~/.config/grove/config.toml
-Local:  /Users/egg/Work/grove-cli/.grove/config.toml (not found)
+Local:  ~/projects/grove-cli/.grove/config.toml (not found)
 
 Settings:
   alias:            w

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
+	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
 
@@ -203,9 +203,7 @@ Examples:
 
 		// Output
 		if syncJSON {
-			data, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Println(string(data))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		// Human-readable output

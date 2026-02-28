@@ -92,7 +92,7 @@ type DockerPluginConfig struct {
 // are defined in a shared compose setup outside the project directory.
 type ExternalComposeConfig struct {
 	Path        string            `toml:"path"`         // Path to external compose directory
-	EnvVar      string            `toml:"env_var"`      // Environment variable name (e.g., "ADMIN_DIR")
+	EnvVar      string            `toml:"env_var"`      // Environment variable name (e.g., "APP_DIR")
 	Services    []string          `toml:"services"`     // Service names to manage
 	CopyFiles   []string          `toml:"copy_files"`   // Files to copy from main on worktree create
 	SymlinkDirs []string          `toml:"symlink_dirs"` // Directories to symlink from main on create

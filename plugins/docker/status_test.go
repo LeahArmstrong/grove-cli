@@ -13,7 +13,7 @@ import (
 
 func TestReadEnvVar(t *testing.T) {
 	dir := t.TempDir()
-	envContent := `ADMIN_DIR=/some/path
+	envContent := `APP_DIR=/some/path
 OTHER_VAR=value
 EMPTY_VAR=
 `
@@ -26,7 +26,7 @@ EMPTY_VAR=
 		key  string
 		want string
 	}{
-		{"existing key", "ADMIN_DIR", "/some/path"},
+		{"existing key", "APP_DIR", "/some/path"},
 		{"another key", "OTHER_VAR", "value"},
 		{"empty value", "EMPTY_VAR", ""},
 		{"missing key", "NONEXISTENT", ""},
@@ -87,14 +87,14 @@ func TestLocalStatuses_WithComposeFile(t *testing.T) {
 
 func TestExternalStatuses_NoMatch(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("ADMIN_DIR=/other/path\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("APP_DIR=/other/path\n"), 0644); err != nil {
 		t.Fatalf("failed to create .env: %v", err)
 	}
 
 	s := &externalStrategy{
 		ext: &config.ExternalComposeConfig{
 			Path:   dir,
-			EnvVar: "ADMIN_DIR",
+			EnvVar: "APP_DIR",
 		},
 	}
 
@@ -108,7 +108,7 @@ func TestExternalStatuses_MatchingPath(t *testing.T) {
 	composeDir := t.TempDir()
 	worktreePath := t.TempDir()
 
-	envContent := fmt.Sprintf("ADMIN_DIR=%s\n", worktreePath)
+	envContent := fmt.Sprintf("APP_DIR=%s\n", worktreePath)
 	if err := os.WriteFile(filepath.Join(composeDir, ".env"), []byte(envContent), 0644); err != nil {
 		t.Fatalf("failed to create .env: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestExternalStatuses_MatchingPath(t *testing.T) {
 	s := &externalStrategy{
 		ext: &config.ExternalComposeConfig{
 			Path:   composeDir,
-			EnvVar: "ADMIN_DIR",
+			EnvVar: "APP_DIR",
 		},
 	}
 

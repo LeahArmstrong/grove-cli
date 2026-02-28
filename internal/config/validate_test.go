@@ -200,8 +200,8 @@ func TestValidateDockerPlugin_FileNotDir(t *testing.T) {
 				Mode: "external",
 				External: &ExternalComposeConfig{
 					Path:     filePath,
-					EnvVar:   "ADMIN_DIR",
-					Services: []string{"admin"},
+					EnvVar:   "APP_DIR",
+					Services: []string{"app"},
 				},
 			},
 		},

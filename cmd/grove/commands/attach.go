@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -112,9 +111,7 @@ This is a tmux-only command — it does not emit cd: directives.`,
 				Path:    targetTree.Path,
 				Created: created,
 			}
-			data, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Println(string(data))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		if tmux.IsInsideTmux() {

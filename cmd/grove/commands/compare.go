@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
 
@@ -139,9 +139,7 @@ Examples:
 
 		// JSON output
 		if compareJSON {
-			data, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Println(string(data))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		// Human-readable output

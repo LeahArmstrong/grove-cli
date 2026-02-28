@@ -557,7 +557,7 @@ func TestValidate(t *testing.T) {
 
 func TestLoadExternalDockerConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	composePath := filepath.Join(tmpDir, "shared-compose")
+	composePath := filepath.Join(tmpDir, "shared-infra")
 	if err := os.MkdirAll(composePath, 0755); err != nil {
 		t.Fatalf("Failed to create compose dir: %v", err)
 	}
@@ -569,8 +569,8 @@ mode = "external"
 
 [plugins.docker.external]
 path = "` + composePath + `"
-env_var = "ADMIN_DIR"
-services = ["admin", "admin_sidekiq"]
+env_var = "APP_DIR"
+services = ["app", "app_worker"]
 copy_files = ["config/credentials/development.key"]
 symlink_dirs = ["vendor/bundle"]
 `
@@ -594,8 +594,8 @@ symlink_dirs = ["vendor/bundle"]
 	if ext.Path != composePath {
 		t.Errorf("Expected path %q, got %q", composePath, ext.Path)
 	}
-	if ext.EnvVar != "ADMIN_DIR" {
-		t.Errorf("Expected env_var 'ADMIN_DIR', got %q", ext.EnvVar)
+	if ext.EnvVar != "APP_DIR" {
+		t.Errorf("Expected env_var 'APP_DIR', got %q", ext.EnvVar)
 	}
 	if len(ext.Services) != 2 {
 		t.Errorf("Expected 2 services, got %d", len(ext.Services))
@@ -628,9 +628,9 @@ func TestMergeConfigsExternalDocker(t *testing.T) {
 			Docker: DockerPluginConfig{
 				Mode: "external",
 				External: &ExternalComposeConfig{
-					Path:     "/tmp/shared-compose",
-					EnvVar:   "ADMIN_DIR",
-					Services: []string{"admin"},
+					Path:     "/tmp/shared-infra",
+					EnvVar:   "APP_DIR",
+					Services: []string{"app"},
 				},
 			},
 		},
@@ -644,8 +644,8 @@ func TestMergeConfigsExternalDocker(t *testing.T) {
 	if result.Plugins.Docker.External == nil {
 		t.Fatal("Expected External config to be preserved from override")
 	}
-	if result.Plugins.Docker.External.EnvVar != "ADMIN_DIR" {
-		t.Errorf("Expected env_var 'ADMIN_DIR', got %q", result.Plugins.Docker.External.EnvVar)
+	if result.Plugins.Docker.External.EnvVar != "APP_DIR" {
+		t.Errorf("Expected env_var 'APP_DIR', got %q", result.Plugins.Docker.External.EnvVar)
 	}
 	// Base values should be preserved
 	if result.Plugins.Docker.Enabled == nil || !*result.Plugins.Docker.Enabled {
@@ -702,8 +702,8 @@ func TestValidateDockerPlugin(t *testing.T) {
 			modify: func(c *Config) {
 				c.Plugins.Docker.Mode = "external"
 				c.Plugins.Docker.External = &ExternalComposeConfig{
-					EnvVar:   "ADMIN_DIR",
-					Services: []string{"admin"},
+					EnvVar:   "APP_DIR",
+					Services: []string{"app"},
 				}
 			},
 			wantErr: true,
@@ -715,7 +715,7 @@ func TestValidateDockerPlugin(t *testing.T) {
 				c.Plugins.Docker.Mode = "external"
 				c.Plugins.Docker.External = &ExternalComposeConfig{
 					Path:     tmpDir,
-					Services: []string{"admin"},
+					Services: []string{"app"},
 				}
 			},
 			wantErr: true,
@@ -727,7 +727,7 @@ func TestValidateDockerPlugin(t *testing.T) {
 				c.Plugins.Docker.Mode = "external"
 				c.Plugins.Docker.External = &ExternalComposeConfig{
 					Path:   tmpDir,
-					EnvVar: "ADMIN_DIR",
+					EnvVar: "APP_DIR",
 				}
 			},
 			wantErr: true,
@@ -739,8 +739,8 @@ func TestValidateDockerPlugin(t *testing.T) {
 				c.Plugins.Docker.Mode = "external"
 				c.Plugins.Docker.External = &ExternalComposeConfig{
 					Path:     "/nonexistent/path",
-					EnvVar:   "ADMIN_DIR",
-					Services: []string{"admin"},
+					EnvVar:   "APP_DIR",
+					Services: []string{"app"},
 				}
 			},
 			wantErr: true,
@@ -752,8 +752,8 @@ func TestValidateDockerPlugin(t *testing.T) {
 				c.Plugins.Docker.Mode = "external"
 				c.Plugins.Docker.External = &ExternalComposeConfig{
 					Path:     tmpDir,
-					EnvVar:   "ADMIN_DIR",
-					Services: []string{"admin", "admin_sidekiq"},
+					EnvVar:   "APP_DIR",
+					Services: []string{"app", "app_worker"},
 				}
 			},
 			wantErr: false,
@@ -780,7 +780,7 @@ func TestValidateDockerPlugin(t *testing.T) {
 
 func TestLoadAgentStackConfig(t *testing.T) {
 	tmpDir := t.TempDir()
-	composePath := filepath.Join(tmpDir, "shared-compose")
+	composePath := filepath.Join(tmpDir, "shared-infra")
 	if err := os.MkdirAll(composePath, 0755); err != nil {
 		t.Fatalf("Failed to create compose dir: %v", err)
 	}
@@ -792,8 +792,8 @@ mode = "external"
 
 [plugins.docker.external]
 path = "` + composePath + `"
-env_var = "ADMIN_DIR"
-services = ["admin"]
+env_var = "APP_DIR"
+services = ["app"]
 
 [plugins.docker.external.agent]
 enabled = true
@@ -853,8 +853,8 @@ func TestValidateAgentConfig(t *testing.T) {
 					Mode: "external",
 					External: &ExternalComposeConfig{
 						Path:     tmpDir,
-						EnvVar:   "ADMIN_DIR",
-						Services: []string{"admin"},
+						EnvVar:   "APP_DIR",
+						Services: []string{"app"},
 					},
 				},
 			},
@@ -960,8 +960,8 @@ func TestMergeConfigsPreservesAgent(t *testing.T) {
 				Mode: "external",
 				External: &ExternalComposeConfig{
 					Path:     "/tmp/compose",
-					EnvVar:   "ADMIN_DIR",
-					Services: []string{"admin"},
+					EnvVar:   "APP_DIR",
+					Services: []string{"app"},
 					Agent: &AgentStackConfig{
 						Enabled:      &boolTrue,
 						MaxSlots:     5,

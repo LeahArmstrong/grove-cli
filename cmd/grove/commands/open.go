@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -270,7 +269,5 @@ func printOpenJSON(wt *worktree.Worktree, name string, created bool) error {
 		Path:     wt.Path,
 		Created:  created,
 	}
-	data, _ := json.MarshalIndent(result, "", "  ")
-	fmt.Println(string(data))
-	return nil
+	return output.PrintJSON(result)
 }

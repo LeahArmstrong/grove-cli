@@ -222,7 +222,7 @@ func withConfigOverlay() testOpt {
 		cs.Fields[ConfigTabGeneral] = []ConfigField{
 			{Key: "project_name", Label: "project_name", Value: "grove-cli", Default: "grove-cli", Type: ConfigString, Description: "Project name"},
 			{Key: "alias", Label: "alias", Value: "", Default: "", Type: ConfigString, Description: "Short name for display"},
-			{Key: "projects_dir", Label: "projects_dir", Value: "/Users/dev/projects", Default: "/Users/dev/projects", Type: ConfigString, Description: "Where worktrees are created"},
+			{Key: "projects_dir", Label: "projects_dir", Value: "/home/dev/projects", Default: "/home/dev/projects", Type: ConfigString, Description: "Where worktrees are created"},
 			{Key: "default_base_branch", Label: "default_branch", Value: "main", Default: "main", Type: ConfigString, Description: "Base branch for new worktrees"},
 		}
 		cs.Fields[ConfigTabBehavior] = []ConfigField{
