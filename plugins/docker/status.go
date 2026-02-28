@@ -151,7 +151,7 @@ func readEnvVar(composePath, key string) string {
 }
 
 // pathMatchesEnv checks whether a worktree path matches the env var value.
-// The env value may be a relative path from composePath (e.g., "./admin-feature-x")
+// The env value may be a relative path from composePath (e.g., "./myapp-feature-x")
 // or an absolute path.
 func pathMatchesEnv(worktreePath, envValue, composePath string) bool {
 	if envValue == "" {

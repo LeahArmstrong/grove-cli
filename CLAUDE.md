@@ -24,7 +24,7 @@ Worktrees MUST follow the `{project}-{name}` pattern:
 ### Shell Integration Protocol
 Commands that change directories output `cd:/path/to/dir` which the shell wrapper intercepts:
 ```bash
-# Binary outputs: cd:/Users/egg/Work/grove-cli-testing
+# Binary outputs: cd:~/projects/grove-cli-testing
 # Shell wrapper detects GROVE_SHELL=1 and executes the cd
 ```
 

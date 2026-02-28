@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -237,8 +236,9 @@ Examples:
 				Path:     wt.Path,
 				Created:  true,
 			}
-			data, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Println(string(data))
+			if err := output.PrintJSON(result); err != nil {
+				return err
+			}
 		}
 
 		return nil

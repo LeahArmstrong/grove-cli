@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +11,7 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
+	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
 
@@ -382,23 +382,14 @@ func applyWIPChanges(w, stderr *cli.Writer, targetPath, sourcePath string, dryRu
 
 // printApplyResult prints the apply result as JSON.
 func printApplyResult(result ApplyResult) {
-	data, _ := json.MarshalIndent(result, "", "  ")
-	fmt.Println(string(data))
+	if err := output.PrintJSON(result); err != nil {
+		output.PrintJSONError(1, err.Error())
+	}
 }
 
 // printApplyJSONError prints an error in JSON format.
 func printApplyJSONError(code int, message string) {
-	errOutput := struct {
-		Error   bool   `json:"error"`
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-	}{
-		Error:   true,
-		Code:    code,
-		Message: message,
-	}
-	data, _ := json.MarshalIndent(errOutput, "", "  ")
-	fmt.Fprintln(os.Stderr, string(data))
+	output.PrintJSONError(code, message)
 }
 
 func init() {

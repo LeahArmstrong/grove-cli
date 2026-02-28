@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -146,9 +145,7 @@ When using shell integration, this will also change your current directory.`,
 				Branch:   targetTree.Branch,
 				Path:     targetTree.Path,
 			}
-			data, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Println(string(data))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		// Output directory change command for shell integration
