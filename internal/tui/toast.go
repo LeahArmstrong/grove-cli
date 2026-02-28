@@ -130,6 +130,14 @@ func (tm *ToastModel) Dismiss() {
 	tm.Current = nil
 }
 
+// Message returns the current toast text, or empty if no toast is active.
+func (tm *ToastModel) Message() string {
+	if tm.Current == nil {
+		return ""
+	}
+	return tm.Current.Message
+}
+
 // View renders the toast right-aligned within the given width.
 // Returns empty string if no toast is active.
 func (tm *ToastModel) View(width int) string {

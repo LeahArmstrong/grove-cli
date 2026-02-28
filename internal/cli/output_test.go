@@ -124,31 +124,31 @@ func TestStatusText_AllCategories(t *testing.T) {
 	w := NewWriter(&bytes.Buffer{}, true)
 
 	tests := []struct {
-		status string
+		status StatusLevel
 		text   string
 	}{
 		// success
-		{"clean", "clean"},
-		{"ok", "ok"},
-		{"active", "active"},
-		{"attached", "attached"},
+		{StatusClean, "clean"},
+		{StatusOK, "ok"},
+		{StatusActive, "active"},
+		{StatusAttached, "attached"},
 		// warning
-		{"dirty", "dirty"},
-		{"warning", "warning"},
-		{"detached", "detached"},
+		{StatusDirty, "dirty"},
+		{StatusWarning, "warning"},
+		{StatusDetached, "detached"},
 		// danger
-		{"stale", "stale"},
-		{"error", "error"},
-		{"fail", "fail"},
+		{StatusStale, "stale"},
+		{StatusError, "error"},
+		{StatusFail, "fail"},
 		// muted
-		{"info", "info"},
-		{"none", "none"},
+		{StatusInfo, "info"},
+		{StatusNone, "none"},
 		// unknown — returns plain text unchanged
 		{"unknown-status", "some text"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.status, func(t *testing.T) {
+		t.Run(string(tt.status), func(t *testing.T) {
 			got := StatusText(w, tt.status, tt.text)
 			if !strings.Contains(got, tt.text) {
 				t.Errorf("StatusText(%q, %q) = %q, want output containing %q", tt.status, tt.text, got, tt.text)

@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"os"
 	"strings"
-	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -69,8 +68,6 @@ type Model struct {
 	activeView ActiveView
 	ready      bool // true after first WindowSizeMsg
 	loading    bool // true while fetching worktrees
-	statusMsg  string
-	statusTTL  time.Time
 
 	// Sort
 	sortMode SortMode
@@ -237,13 +234,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.toast.Show(NewToast(fmt.Sprintf("Delete failed: %s", msg.err), ToastError))
 		} else if msg.branchErr != nil {
-			m.statusMsg = fmt.Sprintf("Deleted %q (branch kept)", msg.name)
-			m.statusTTL = time.Now().Add(3 * time.Second)
 			m.toast.Show(NewToast(fmt.Sprintf("Deleted %q but %s", msg.name, msg.branchErr), ToastWarning))
 			cmds = append(cmds, m.spinner.Tick)
 		} else {
-			m.statusMsg = fmt.Sprintf("Deleted %q", msg.name)
-			m.statusTTL = time.Now().Add(3 * time.Second)
 			m.toast.Show(NewToast(fmt.Sprintf("Deleted %q", msg.name), ToastSuccess))
 			cmds = append(cmds, m.spinner.Tick)
 		}
@@ -262,8 +255,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.createState = nil
 		m.pendingSelect = msg.name
 
-		m.statusMsg = fmt.Sprintf("Created %q", msg.name)
-		m.statusTTL = time.Now().Add(3 * time.Second)
 		if msg.hookErr != nil {
 			m.toast.Show(NewToast(fmt.Sprintf("Created %q (hook failed: %s)", msg.name, msg.hookErr), ToastWarning))
 		} else {
@@ -274,12 +265,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, m.spinner.Tick, m.fetchWorktrees)
 		return m, tea.Batch(cmds...)
-
-	case statusClearMsg:
-		if !msg.deadline.Before(m.statusTTL) {
-			m.statusMsg = ""
-		}
-		return m, nil
 
 	case prsFetchedMsg:
 		if m.prState != nil {
@@ -317,8 +302,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.issueState = nil
 		m.pendingSelect = msg.name
 
-		m.statusMsg = fmt.Sprintf("Created worktree from issue %q", msg.name)
-		m.statusTTL = time.Now().Add(3 * time.Second)
 		if msg.hookErr != nil {
 			m.toast.Show(NewToast(fmt.Sprintf("Created from issue %q (hook failed: %s)", msg.name, msg.hookErr), ToastWarning))
 		} else {
@@ -344,8 +327,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.prState = nil
 		m.pendingSelect = msg.name
 
-		m.statusMsg = fmt.Sprintf("Created worktree from PR %q", msg.name)
-		m.statusTTL = time.Now().Add(3 * time.Second)
 		if msg.hookErr != nil {
 			m.toast.Show(NewToast(fmt.Sprintf("Created from PR %q (hook failed: %s)", msg.name, msg.hookErr), ToastWarning))
 		} else {
@@ -366,13 +347,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				names = append(names, name)
 				tuilog.Printf("bulk delete failed for %q: %s", name, errMsg)
 			}
-			m.statusMsg = fmt.Sprintf("Deleted %d worktrees (%d failed: %s)", msg.count, len(msg.failed), strings.Join(names, ", "))
 			m.toast.Show(NewToast(fmt.Sprintf("Deleted %d, failed: %s", msg.count, strings.Join(names, ", ")), ToastWarning))
 		} else {
-			m.statusMsg = fmt.Sprintf("Deleted %d worktrees", msg.count)
 			m.toast.Show(NewToast(fmt.Sprintf("Deleted %d worktrees", msg.count), ToastSuccess))
 		}
-		m.statusTTL = time.Now().Add(3 * time.Second)
 		return m, tea.Batch(m.spinner.Tick, m.fetchWorktrees)
 
 	case forkWIPCheckMsg:
@@ -1441,8 +1419,8 @@ func (m Model) renderStatusBar() string {
 		parts = append(parts, Styles.TextMuted.Render("↕ "+m.sortMode.String()))
 	}
 
-	if m.statusMsg != "" {
-		parts = append(parts, " "+Styles.StatusSuccess.Render("✓ "+m.statusMsg))
+	if msg := m.toast.Message(); msg != "" {
+		parts = append(parts, " "+Styles.StatusSuccess.Render("✓ "+msg))
 	}
 
 	return strings.Join(parts, "  ")

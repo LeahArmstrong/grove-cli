@@ -438,14 +438,14 @@ func TestToastLifecycle(t *testing.T) {
 
 	// Simulate a delete completion
 	m = sendMsg(m, worktreeDeletedMsg{name: "testing", err: nil})
-	if m.statusMsg == "" {
-		t.Error("expected status message after delete")
+	if m.toast.Message() == "" {
+		t.Error("expected toast message after delete")
 	}
 
-	// A future clear message should clear it
-	m = sendMsg(m, statusClearMsg{deadline: m.statusTTL})
-	if m.statusMsg != "" {
-		t.Error("expected status message to be cleared")
+	// Dismiss clears it
+	m.toast.Dismiss()
+	if m.toast.Message() != "" {
+		t.Error("expected toast message to be cleared after dismiss")
 	}
 }
 
@@ -454,18 +454,11 @@ func TestToastSuperseding(t *testing.T) {
 
 	// First action
 	m = sendMsg(m, worktreeDeletedMsg{name: "first", err: nil})
-	firstTTL := m.statusTTL
 
 	// Second action supersedes
 	m = sendMsg(m, worktreeCreatedMsg{name: "second", path: "/tmp/second"})
-	if m.statusMsg == "" || m.statusMsg == `Deleted "first"` {
+	if m.toast.Message() == "" || m.toast.Message() == `Deleted "first"` {
 		t.Error("expected second toast to replace first")
-	}
-
-	// Early clear from first tick should NOT clear
-	m = sendMsg(m, statusClearMsg{deadline: firstTTL})
-	if m.statusMsg == "" {
-		t.Error("early tick should not clear superseded toast")
 	}
 }
 
@@ -805,9 +798,6 @@ func TestWorktreeDeletedMsgWithError(t *testing.T) {
 	m.activeView = ViewDelete
 	m.deleteState = &DeleteState{Item: &WorktreeItem{ShortName: "test"}}
 	m = sendMsg(m, worktreeDeletedMsg{name: "test", err: errTest})
-	if m.statusMsg != "" {
-		t.Error("expected no status message on delete error")
-	}
 	// Toast should show the error
 	if m.toast.Current == nil || m.toast.Current.Level != ToastError {
 		t.Error("expected error toast on delete failure")
@@ -825,8 +815,8 @@ func TestBulkDeleteDoneMsg(t *testing.T) {
 	if m.bulkState != nil {
 		t.Error("expected bulkState nil after done")
 	}
-	if !strings.Contains(m.statusMsg, "3") {
-		t.Errorf("expected status msg with count, got %q", m.statusMsg)
+	if !strings.Contains(m.toast.Message(), "3") {
+		t.Errorf("expected toast msg with count, got %q", m.toast.Message())
 	}
 }
 
