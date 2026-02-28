@@ -89,19 +89,37 @@ func Label(w *Writer, label, value string) {
 	}
 }
 
+// StatusLevel represents a semantic status for colored output.
+type StatusLevel string
+
+const (
+	StatusClean    StatusLevel = "clean"
+	StatusOK       StatusLevel = "ok"
+	StatusActive   StatusLevel = "active"
+	StatusAttached StatusLevel = "attached"
+	StatusDirty    StatusLevel = "dirty"
+	StatusWarning  StatusLevel = "warning"
+	StatusDetached StatusLevel = "detached"
+	StatusStale    StatusLevel = "stale"
+	StatusError    StatusLevel = "error"
+	StatusFail     StatusLevel = "fail"
+	StatusInfo     StatusLevel = "info"
+	StatusNone     StatusLevel = "none"
+)
+
 // StatusText returns styled text colored by status level.
-func StatusText(w *Writer, status, text string) string {
+func StatusText(w *Writer, status StatusLevel, text string) string {
 	if !w.UseColor() {
 		return text
 	}
 	switch status {
-	case "clean", "ok", "active", "attached":
+	case StatusClean, StatusOK, StatusActive, StatusAttached:
 		return lipgloss.NewStyle().Foreground(theme.Colors.Success).Render(text)
-	case "dirty", "warning", "detached":
+	case StatusDirty, StatusWarning, StatusDetached:
 		return lipgloss.NewStyle().Foreground(theme.Colors.Warning).Render(text)
-	case "stale", "error", "fail":
+	case StatusStale, StatusError, StatusFail:
 		return lipgloss.NewStyle().Foreground(theme.Colors.Danger).Render(text)
-	case "info", "none":
+	case StatusInfo, StatusNone:
 		return lipgloss.NewStyle().Foreground(theme.Colors.TextMuted).Render(text)
 	default:
 		return text

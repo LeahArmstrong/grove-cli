@@ -208,10 +208,10 @@ var lsCmd = &cobra.Command{
 
 		// Build column definitions
 		statusColorFn := func(value string) string {
-			return cli.StatusText(w, value, value)
+			return cli.StatusText(w, cli.StatusLevel(value), value)
 		}
 		tmuxColorFn := func(value string) string {
-			return cli.StatusText(w, value, value)
+			return cli.StatusText(w, cli.StatusLevel(value), value)
 		}
 
 		indicatorColorFn := func(value string) string {

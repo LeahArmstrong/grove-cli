@@ -485,7 +485,7 @@ func TestUpdate_WorktreeDeletedMsg(t *testing.T) {
 	if m.activeView != ViewDashboard {
 		t.Errorf("expected ViewDashboard after delete, got %d", m.activeView)
 	}
-	if m.statusMsg == "" {
+	if m.toast.Message() == "" {
 		t.Error("expected non-empty status message after successful delete")
 	}
 }
@@ -505,7 +505,7 @@ func TestUpdate_WorktreeCreatedMsg(t *testing.T) {
 	if m.activeView != ViewDashboard {
 		t.Errorf("expected ViewDashboard after create, got %d", m.activeView)
 	}
-	if m.statusMsg == "" {
+	if m.toast.Message() == "" {
 		t.Error("expected non-empty status message after successful create")
 	}
 }
@@ -525,7 +525,7 @@ func TestUpdate_BulkDeleteDoneMsg(t *testing.T) {
 	if m.activeView != ViewDashboard {
 		t.Errorf("expected ViewDashboard after bulk delete, got %d", m.activeView)
 	}
-	if m.statusMsg == "" {
+	if m.toast.Message() == "" {
 		t.Error("expected non-empty status message after bulk delete")
 	}
 }

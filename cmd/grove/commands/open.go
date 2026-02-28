@@ -3,15 +3,11 @@ package commands
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
-	"github.com/LeahArmstrong/grove-cli/internal/grove"
-	"github.com/LeahArmstrong/grove-cli/internal/hooks"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
-	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
@@ -80,78 +76,20 @@ Examples:
 				return fmt.Errorf("worktree '%s' not found (use 'grove open %s' without --no-create to create it)", name, name)
 			}
 
-			// Create the worktree (reuse logic from grove new)
+			// Create the worktree
 			branchName := name
 			if err := mgr.Create(name, branchName); err != nil {
 				return fmt.Errorf("failed to create worktree: %w", err)
 			}
 
-			wt, err = mgr.Find(name)
-			if err != nil || wt == nil {
-				return fmt.Errorf("failed to find created worktree: %w", err)
-			}
-
-			// Symlink config
-			_ = grove.EnsureConfigSymlink(ctx.ProjectRoot, wt.Path)
-
-			// Register in state
-			now := time.Now()
-			wsState := &state.WorktreeState{
-				Path:           wt.Path,
-				Branch:         branchName,
-				Root:           false,
-				CreatedAt:      now,
-				LastAccessedAt: now,
-			}
-			if err := ctx.State.AddWorktree(name, wsState); err != nil {
-				if !openJSON {
-					cli.Warning(stderr, "state tracking failed: %v", err)
-				}
-			}
-
-			// Fire post-create hooks
-			globalHookCtx := &hooks.Context{
-				Worktree:     name,
-				Config:       ctx.Config,
-				WorktreePath: wt.Path,
-				MainPath:     ctx.ProjectRoot,
-			}
-			if err := hooks.Fire(hooks.EventPostCreate, globalHookCtx); err != nil {
-				if !openJSON {
-					cli.Warning(stderr, "post-create hooks failed: %v", err)
-				}
-			}
-
-			// Execute per-project post-create hooks
-			hookExecutor, err := hooks.NewExecutor()
+			// Post-create setup: find, symlink, state, hooks, docker
+			wt, err = setupCreatedWorktree(ctx, mgr, name, branchName, worktreeSetupOpts{
+				NoDocker:   openNoDocker,
+				JSONOutput: openJSON,
+			}, w)
 			if err != nil {
-				if !openJSON {
-					cli.Warning(w, "Failed to load hooks config: %v", err)
-				}
-			} else if hookExecutor.HasHooksForEvent(hooks.EventPostCreate) {
-				hookCtx := &hooks.ExecutionContext{
-					Event:        hooks.EventPostCreate,
-					Worktree:     name,
-					WorktreeFull: projectName + "-" + name,
-					Branch:       branchName,
-					Project:      projectName,
-					MainPath:     ctx.ProjectRoot,
-					NewPath:      wt.Path,
-				}
-
-				if !openJSON {
-					cli.Step(w, "Running post-create hooks...")
-				}
-
-				if err := hookExecutor.Execute(hooks.EventPostCreate, hookCtx); err != nil {
-					if !openJSON {
-						cli.Warning(w, "Hook execution had errors: %v", err)
-					}
-				}
+				return err
 			}
-
-			// Auto-start Docker when configured (unless --no-docker)
-			autoStartDocker(w, ctx.Config, wt.Path, openNoDocker, openJSON)
 
 			created = true
 			if !openJSON {

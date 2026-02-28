@@ -167,9 +167,9 @@ var hereCmd = &cobra.Command{
 
 		// Show status with color
 		if tree.IsDirty {
-			cli.Label(w, "Status: ", cli.StatusText(w, "dirty", "● Dirty"))
+			cli.Label(w, "Status: ", cli.StatusText(w, cli.StatusDirty, "● Dirty"))
 		} else {
-			cli.Label(w, "Status: ", cli.StatusText(w, "clean", "✓ Clean"))
+			cli.Label(w, "Status: ", cli.StatusText(w, cli.StatusClean, "✓ Clean"))
 		}
 
 		// Show dirty files if present

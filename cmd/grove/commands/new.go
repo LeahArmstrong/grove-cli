@@ -5,20 +5,14 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
-	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
-	"github.com/LeahArmstrong/grove-cli/internal/grove"
-	"github.com/LeahArmstrong/grove-cli/internal/hooks"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
-	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
-	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
 var (
@@ -118,34 +112,15 @@ Examples:
 			}
 		}
 
-		// Find the newly created worktree to get its path
-		wt, err := mgr.Find(name)
-		if err != nil || wt == nil {
-			return fmt.Errorf("failed to find created worktree: %w", err)
-		}
-
-		// Symlink config.toml from main worktree
-		_ = grove.EnsureConfigSymlink(ctx.ProjectRoot, wt.Path)
-
-		// Register worktree in state
-		now := time.Now()
-		wsState := &state.WorktreeState{
-			Path:           wt.Path,
-			Branch:         branchName,
-			Root:           false,
-			CreatedAt:      now,
-			LastAccessedAt: now,
-			Environment:    isEnvironment,
-		}
-
-		if isEnvironment {
-			wsState.Mirror = newMirror
-			wsState.LastSyncedAt = &now
-		}
-
-		if err := ctx.State.AddWorktree(name, wsState); err != nil {
-			cli.Warning(w, "worktree created but state tracking failed: %v", err)
-			cli.Faint(w, "run 'grove repair' to fix")
+		// Post-create setup: find, symlink, state, hooks, docker
+		wt, err := setupCreatedWorktree(ctx, mgr, name, branchName, worktreeSetupOpts{
+			IsEnvironment: isEnvironment,
+			Mirror:        newMirror,
+			NoDocker:      newNoDocker,
+			JSONOutput:    newJSON,
+		}, w)
+		if err != nil {
+			return err
 		}
 
 		projectName := mgr.GetProjectName()
@@ -161,50 +136,6 @@ Examples:
 				cli.Success(w, "Created tmux session '%s'", sessionName)
 			}
 		}
-
-		// Execute post-create hooks
-		hookExecutor, err := hooks.NewExecutor()
-		if err != nil {
-			if !newJSON {
-				cli.Warning(w, "Failed to load hooks config: %v", err)
-			}
-		} else if hookExecutor.HasHooksForEvent(hooks.EventPostCreate) {
-			hookCtx := &hooks.ExecutionContext{
-				Event:        hooks.EventPostCreate,
-				Worktree:     name,
-				WorktreeFull: projectName + "-" + name,
-				Branch:       branchName,
-				Project:      projectName,
-				MainPath:     ctx.ProjectRoot,
-				NewPath:      wt.Path,
-			}
-
-			if !newJSON {
-				cli.Step(w, "Running post-create hooks...")
-			}
-
-			if err := hookExecutor.Execute(hooks.EventPostCreate, hookCtx); err != nil {
-				if !newJSON {
-					cli.Warning(w, "Hook execution had errors: %v", err)
-				}
-			}
-		}
-
-		// Fire global registry post-create hook (for plugins like docker external)
-		globalHookCtx := &hooks.Context{
-			Worktree:     name,
-			Config:       ctx.Config,
-			WorktreePath: wt.Path,
-			MainPath:     ctx.ProjectRoot,
-		}
-		if err := hooks.Fire(hooks.EventPostCreate, globalHookCtx); err != nil {
-			if !newJSON {
-				cli.Warning(w, "Post-create plugin hook failed: %v", err)
-			}
-		}
-
-		// Auto-start Docker when configured (unless --no-docker)
-		autoStartDocker(w, ctx.Config, wt.Path, newNoDocker, newJSON)
 
 		// JSON output mode
 		if newJSON {
@@ -222,59 +153,6 @@ Examples:
 
 		return nil
 	}),
-}
-
-// autoStartDocker starts the Docker stack for a new worktree if configured.
-func autoStartDocker(w *cli.Writer, cfg *config.Config, wtPath string, noDocker, jsonOutput bool) {
-	if noDocker || !shouldAutoDocker(cfg) {
-		return
-	}
-	if !jsonOutput {
-		cli.Step(w, "Starting Docker stack...")
-	}
-	dockerPlugin := docker.New()
-	if cfg.AgentMode {
-		dockerPlugin.SetIsolated(true)
-	}
-	if err := dockerPlugin.Init(cfg); err != nil {
-		if !jsonOutput {
-			cli.Warning(w, "Docker init failed: %v", err)
-		}
-		return
-	}
-	if !dockerPlugin.Enabled() {
-		return
-	}
-	if err := dockerPlugin.Up(wtPath, true); err != nil {
-		if !jsonOutput {
-			cli.Warning(w, "Docker auto-start failed: %v", err)
-		}
-	} else if !jsonOutput {
-		cli.Success(w, "Docker stack started")
-	}
-}
-
-// shouldAutoDocker returns true when Docker should be auto-started on grove new.
-// Enabled by default when agent stacks are configured, or explicitly via auto_up.
-func shouldAutoDocker(cfg *config.Config) bool {
-	if cfg == nil {
-		return false
-	}
-
-	// Explicit auto_up setting takes precedence
-	if cfg.Plugins.Docker.AutoUp != nil {
-		return *cfg.Plugins.Docker.AutoUp
-	}
-
-	// Default: auto-start when agent stacks are configured and enabled
-	if cfg.IsExternalDockerMode() {
-		ext := cfg.Plugins.Docker.External
-		if ext != nil && ext.Agent != nil && ext.Agent.Enabled != nil && *ext.Agent.Enabled {
-			return true
-		}
-	}
-
-	return false
 }
 
 func init() {

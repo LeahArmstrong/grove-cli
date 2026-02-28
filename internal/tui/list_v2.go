@@ -30,6 +30,7 @@ func ComputeDelegateWidthsV2(items []list.Item, width int) WorktreeDelegateV2 {
 	}
 
 	d := WorktreeDelegateV2{}
+	d.initStyles()
 
 	// Scale caps with available width so ultrawide terminals use the space
 	// Branch is the primary identifier (larger cap), directory is secondary
@@ -181,11 +182,29 @@ func renderBadgesV2Bg(item WorktreeItem, selected bool) string {
 type WorktreeDelegateV2 struct {
 	NameWidth   int
 	BranchWidth int
+
+	// Cached styles (depend only on static Colors, computed once)
+	divStyle      lipgloss.Style
+	divStyleSel   lipgloss.Style
+	branchStyle   lipgloss.Style
+	branchStyleSel lipgloss.Style
+	selBgStyle    lipgloss.Style
+}
+
+// initStyles pre-computes the static styles used in the render hot path.
+func (d *WorktreeDelegateV2) initStyles() {
+	d.divStyle = lipgloss.NewStyle().Foreground(Colors.SurfaceDim)
+	d.divStyleSel = d.divStyle.Background(Colors.SelectionBg)
+	d.branchStyle = lipgloss.NewStyle().Foreground(Colors.Primary)
+	d.branchStyleSel = d.branchStyle.Background(Colors.SelectionBg)
+	d.selBgStyle = lipgloss.NewStyle().Background(Colors.SelectionBg)
 }
 
 // NewWorktreeDelegateV2 creates a new V2 delegate with default widths.
 func NewWorktreeDelegateV2() WorktreeDelegateV2 {
-	return WorktreeDelegateV2{NameWidth: 20, BranchWidth: 16}
+	d := WorktreeDelegateV2{NameWidth: 20, BranchWidth: 16}
+	d.initStyles()
+	return d
 }
 
 func (d WorktreeDelegateV2) Height() int                             { return 2 }
@@ -217,7 +236,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 		}
 		s := strings.Repeat(" ", n)
 		if selected {
-			return lipgloss.NewStyle().Background(Colors.SelectionBg).Render(s)
+			return d.selBgStyle.Render(s)
 		}
 		return s
 	}
@@ -225,10 +244,13 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	mutedStyle := withBg(Styles.TextMuted)
 	// Dim style for commit messages — readable but subordinate
 	dimStyle := withBg(Styles.DimmedItem)
-	// Very dim style for dividers, rules, numbers — structural elements
-	divStyle := withBg(lipgloss.NewStyle().Foreground(Colors.SurfaceDim))
-	// Branch uses primary purple to stand out from the blue tones
-	branchStyle := withBg(lipgloss.NewStyle().Foreground(Colors.Primary))
+	// Cached styles for structural elements and branch text
+	divStyle := d.divStyle
+	branchStyle := d.branchStyle
+	if selected {
+		divStyle = d.divStyleSel
+		branchStyle = d.branchStyleSel
+	}
 
 	sep := divStyle.Render(" │ ")
 	const sepLen = 3 // visible width of " │ "

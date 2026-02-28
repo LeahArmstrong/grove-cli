@@ -156,8 +156,8 @@ Examples:
 			_, _ = fmt.Fprintln(w)
 			cli.Bold(w, "Commits ahead of %s (%d):", result.Target, len(result.Commits))
 			for _, commit := range result.Commits {
-				sha := cli.StatusText(w, "info", commit.SHA[:7])
-				age := cli.StatusText(w, "info", "("+commit.Age+")")
+				sha := cli.StatusText(w, cli.StatusInfo, commit.SHA[:7])
+				age := cli.StatusText(w, cli.StatusInfo, "("+commit.Age+")")
 				_, _ = fmt.Fprintf(w, "  %s %s %s\n", sha, commit.Message, age)
 			}
 		}
@@ -169,19 +169,19 @@ Examples:
 			if len(result.WIP.Staged) > 0 {
 				_, _ = fmt.Fprintf(w, "  Staged (%d):\n", len(result.WIP.Staged))
 				for _, f := range result.WIP.Staged {
-					_, _ = fmt.Fprintf(w, "    %s\n", cli.StatusText(w, "ok", "+ "+f))
+					_, _ = fmt.Fprintf(w, "    %s\n", cli.StatusText(w, cli.StatusOK, "+ "+f))
 				}
 			}
 			if len(result.WIP.Unstaged) > 0 {
 				_, _ = fmt.Fprintf(w, "  Unstaged (%d):\n", len(result.WIP.Unstaged))
 				for _, f := range result.WIP.Unstaged {
-					_, _ = fmt.Fprintf(w, "    %s\n", cli.StatusText(w, "dirty", "M "+f))
+					_, _ = fmt.Fprintf(w, "    %s\n", cli.StatusText(w, cli.StatusDirty, "M "+f))
 				}
 			}
 			if len(result.WIP.Untracked) > 0 {
 				_, _ = fmt.Fprintf(w, "  Untracked (%d):\n", len(result.WIP.Untracked))
 				for _, f := range result.WIP.Untracked {
-					_, _ = fmt.Fprintf(w, "    %s\n", cli.StatusText(w, "info", "? "+f))
+					_, _ = fmt.Fprintf(w, "    %s\n", cli.StatusText(w, cli.StatusInfo, "? "+f))
 				}
 			}
 		}
