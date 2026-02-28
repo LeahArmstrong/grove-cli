@@ -12,7 +12,7 @@
           │    ❯ project_name    grove-cli                           │
           │        Project name                                      │
           │      alias           (empty)                             │
-          │      projects_dir    /Users/dev/projects                 │
+          │      projects_dir    /home/dev/projects                  │
           │      default_branch  main                                │
           │                                                          │
           │    tab/shift+tab sections  ↑↓ navigate  enter edit  esc  │
