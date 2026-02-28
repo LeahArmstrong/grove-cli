@@ -168,20 +168,20 @@ func loadFromPaths(cfg *Config, globalPath, projectPath string) (*Config, error)
 	}
 
 	// Load global config if it exists
-	if _, err := os.Stat(globalPath); err == nil {
-		globalCfg, err := LoadConfigFromPath(globalPath)
-		if err != nil {
-			return nil, err
-		}
+	globalCfg, err := LoadConfigFromPath(globalPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	if globalCfg != nil {
 		cfg = mergeConfigs(cfg, globalCfg)
 	}
 
 	// Load project config if it exists (overrides global)
-	if _, err := os.Stat(projectPath); err == nil {
-		projectCfg, err := LoadConfigFromPath(projectPath)
-		if err != nil {
-			return nil, err
-		}
+	projectCfg, err := LoadConfigFromPath(projectPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	if projectCfg != nil {
 		cfg = mergeConfigs(cfg, projectCfg)
 	}
 

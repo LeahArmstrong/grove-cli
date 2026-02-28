@@ -14,7 +14,6 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
-	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
 var (
@@ -152,28 +151,7 @@ Examples:
 			}
 
 			// Auto-start Docker when configured (unless --no-docker)
-			if !openNoDocker && shouldAutoDocker(ctx.Config) {
-				if !openJSON {
-					cli.Step(w, "Starting Docker stack...")
-				}
-				dockerPlugin := docker.New()
-				if ctx.Config.AgentMode {
-					dockerPlugin.SetIsolated(true)
-				}
-				if err := dockerPlugin.Init(ctx.Config); err != nil {
-					if !openJSON {
-						cli.Warning(w, "Docker init failed: %v", err)
-					}
-				} else if dockerPlugin.Enabled() {
-					if err := dockerPlugin.Up(wt.Path, true); err != nil {
-						if !openJSON {
-							cli.Warning(w, "Docker auto-start failed: %v", err)
-						}
-					} else if !openJSON {
-						cli.Success(w, "Docker stack started")
-					}
-				}
-			}
+			autoStartDocker(w, ctx.Config, wt.Path, openNoDocker, openJSON)
 
 			created = true
 			if !openJSON {
@@ -215,10 +193,10 @@ Examples:
 					cli.Success(w, "Created session '%s'", sessionName)
 				}
 			}
-		} else if sessionCmd != "" && !tmux.IsCommandRunning(sessionName, sessionCmd) {
-			// Session exists but command not running — send it
+		} else if sessionCmd != "" {
+			// Session exists — check if command is already running
 			pane, pErr := tmux.GetPaneInfo(sessionName)
-			if pErr == nil && pane.IsShell() {
+			if pErr == nil && pane.IsShell() && pane.CurrentCommand != sessionCmd {
 				_ = tmux.SendKeys(sessionName, sessionCmd)
 				if !openJSON {
 					cli.Success(w, "Launched '%s' in existing session", sessionCmd)

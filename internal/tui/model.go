@@ -86,8 +86,7 @@ type Model struct {
 	configState *ConfigState
 
 	// Post-create selection
-	pendingSelect     string
-	pendingSelectPath string
+	pendingSelect string
 
 	// Output
 	switchTo            string
@@ -227,7 +226,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			m.pendingSelect = ""
-			m.pendingSelectPath = ""
 		}
 
 		m.updateDetailContent()
@@ -263,7 +261,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = ViewDashboard
 		m.createState = nil
 		m.pendingSelect = msg.name
-		m.pendingSelectPath = msg.path
+
 		m.statusMsg = fmt.Sprintf("Created %q", msg.name)
 		m.statusTTL = time.Now().Add(3 * time.Second)
 		if msg.hookErr != nil {
@@ -318,7 +316,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = ViewDashboard
 		m.issueState = nil
 		m.pendingSelect = msg.name
-		m.pendingSelectPath = msg.path
+
 		m.statusMsg = fmt.Sprintf("Created worktree from issue %q", msg.name)
 		m.statusTTL = time.Now().Add(3 * time.Second)
 		if msg.hookErr != nil {
@@ -345,7 +343,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = ViewDashboard
 		m.prState = nil
 		m.pendingSelect = msg.name
-		m.pendingSelectPath = msg.path
+
 		m.statusMsg = fmt.Sprintf("Created worktree from PR %q", msg.name)
 		m.statusTTL = time.Now().Add(3 * time.Second)
 		if msg.hookErr != nil {
@@ -399,7 +397,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activeView = ViewDashboard
 				m.forkState = nil
 				m.pendingSelect = msg.name
-				m.pendingSelectPath = msg.path
+
 				m.toast.Show(NewToast(fmt.Sprintf("Forked %q (warning: %s)", msg.name, msg.err), ToastWarning))
 				return m, tea.Batch(m.spinner.Tick, m.fetchWorktrees)
 			}
@@ -412,7 +410,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = ViewDashboard
 		m.forkState = nil
 		m.pendingSelect = msg.name
-		m.pendingSelectPath = msg.path
+
 		m.toast.Show(NewToast(fmt.Sprintf("Forked %q", msg.name), ToastSuccess))
 		return m, tea.Batch(m.spinner.Tick, m.fetchWorktrees)
 

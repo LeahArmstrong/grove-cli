@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
@@ -124,7 +124,7 @@ var hereCmd = &cobra.Command{
 				changes = filtered
 			}
 
-			output := hereOutput{
+			result := hereOutput{
 				Name:     displayName,
 				FullName: tree.Name,
 				Project:  projectName,
@@ -148,12 +148,7 @@ var hereCmd = &cobra.Command{
 				AgentURL:    agentURL,
 			}
 
-			jsonBytes, err := json.MarshalIndent(output, "", "  ")
-			if err != nil {
-				return fmt.Errorf("failed to marshal JSON: %w", err)
-			}
-			fmt.Println(string(jsonBytes))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		// Default: formatted output

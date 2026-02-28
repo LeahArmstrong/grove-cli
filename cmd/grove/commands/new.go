@@ -204,28 +204,7 @@ Examples:
 		}
 
 		// Auto-start Docker when configured (unless --no-docker)
-		if !newNoDocker && shouldAutoDocker(ctx.Config) {
-			if !newJSON {
-				cli.Step(w, "Starting Docker stack...")
-			}
-			dockerPlugin := docker.New()
-			if ctx.Config.AgentMode {
-				dockerPlugin.SetIsolated(true)
-			}
-			if err := dockerPlugin.Init(ctx.Config); err != nil {
-				if !newJSON {
-					cli.Warning(w, "Docker init failed: %v", err)
-				}
-			} else if dockerPlugin.Enabled() {
-				if err := dockerPlugin.Up(wt.Path, true); err != nil {
-					if !newJSON {
-						cli.Warning(w, "Docker auto-start failed: %v", err)
-					}
-				} else if !newJSON {
-					cli.Success(w, "Docker stack started")
-				}
-			}
-		}
+		autoStartDocker(w, ctx.Config, wt.Path, newNoDocker, newJSON)
 
 		// JSON output mode
 		if newJSON {
@@ -243,6 +222,36 @@ Examples:
 
 		return nil
 	}),
+}
+
+// autoStartDocker starts the Docker stack for a new worktree if configured.
+func autoStartDocker(w *cli.Writer, cfg *config.Config, wtPath string, noDocker, jsonOutput bool) {
+	if noDocker || !shouldAutoDocker(cfg) {
+		return
+	}
+	if !jsonOutput {
+		cli.Step(w, "Starting Docker stack...")
+	}
+	dockerPlugin := docker.New()
+	if cfg.AgentMode {
+		dockerPlugin.SetIsolated(true)
+	}
+	if err := dockerPlugin.Init(cfg); err != nil {
+		if !jsonOutput {
+			cli.Warning(w, "Docker init failed: %v", err)
+		}
+		return
+	}
+	if !dockerPlugin.Enabled() {
+		return
+	}
+	if err := dockerPlugin.Up(wtPath, true); err != nil {
+		if !jsonOutput {
+			cli.Warning(w, "Docker auto-start failed: %v", err)
+		}
+	} else if !jsonOutput {
+		cli.Success(w, "Docker stack started")
+	}
 }
 
 // shouldAutoDocker returns true when Docker should be auto-started on grove new.
