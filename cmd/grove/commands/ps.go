@@ -1,12 +1,12 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
@@ -37,18 +37,22 @@ Examples:
   grove ps          # Show active stacks
   grove ps --json   # Machine-readable output`,
 	RunE: RequireGroveContext(func(cmd *cobra.Command, args []string, ctx *GroveContext) error {
+		w := cli.NewStdout()
+
 		slots, err := docker.ListActiveSlots(ctx.Config)
 		if err != nil {
 			if psJSON {
 				fmt.Println("[]")
 				return nil
 			}
-			fmt.Println("Stacks not configured for this project")
-			fmt.Println("\nTo enable, add to .grove/config.toml:")
-			fmt.Println("\n  [plugins.docker.external.agent]")
-			fmt.Println("  enabled = true")
-			fmt.Println("  services = [\"app\"]")
-			fmt.Println("  template_path = \"agent-stacks/template.yml\"")
+			cli.Info(w, "Stacks not configured for this project")
+			cli.Faint(w, "")
+			cli.Faint(w, "To enable, add to .grove/config.toml:")
+			cli.Faint(w, "")
+			cli.Faint(w, "  [plugins.docker.external.agent]")
+			cli.Faint(w, "  enabled = true")
+			cli.Faint(w, "  services = [\"app\"]")
+			cli.Faint(w, "  template_path = \"agent-stacks/template.yml\"")
 			return nil
 		}
 
@@ -62,15 +66,8 @@ Examples:
 					URL:     docker.AgentURL(ctx.Config, s.Slot),
 				})
 			}
-			data, err := json.MarshalIndent(out, "", "  ")
-			if err != nil {
-				return fmt.Errorf("failed to marshal JSON: %w", err)
-			}
-			fmt.Println(string(data))
-			return nil
+			return output.PrintJSON(out)
 		}
-
-		w := cli.NewStdout()
 
 		if len(slots) == 0 {
 			cli.Info(w, "No active stacks")

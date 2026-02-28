@@ -63,19 +63,12 @@ Examples:
 
 		// Start containers — no spinner here: docker compose writes its own
 		// progress to stderr, and wrapping it in Bubbletea causes flashing.
-		if upDetach {
-			cli.Step(stderr, "Starting containers...")
-			if err := plugin.Up(cwd, true); err != nil {
-				return fmt.Errorf("failed to start containers: %w", err)
-			}
-			if !upIsolated {
-				cli.Success(w, "Containers started")
-			}
-		} else {
-			cli.Step(stderr, "Starting containers...")
-			if err := plugin.Up(cwd, false); err != nil {
-				return fmt.Errorf("failed to start containers: %w", err)
-			}
+		cli.Step(stderr, "Starting containers...")
+		if err := plugin.Up(cwd, upDetach); err != nil {
+			return fmt.Errorf("failed to start containers: %w", err)
+		}
+		if upDetach && !upIsolated {
+			cli.Success(w, "Containers started")
 		}
 
 		return nil

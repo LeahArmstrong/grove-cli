@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Session represents a tmux session
@@ -22,10 +23,19 @@ func IsInsideTmux() bool {
 	return os.Getenv("TMUX") != ""
 }
 
-// IsTmuxAvailable checks if tmux is installed
+var (
+	tmuxAvailableOnce   sync.Once
+	tmuxAvailableResult bool
+)
+
+// IsTmuxAvailable checks if tmux is installed. The result is cached for the
+// lifetime of the process since tmux availability doesn't change at runtime.
 func IsTmuxAvailable() bool {
-	_, err := exec.LookPath("tmux")
-	return err == nil
+	tmuxAvailableOnce.Do(func() {
+		_, err := exec.LookPath("tmux")
+		tmuxAvailableResult = err == nil
+	})
+	return tmuxAvailableResult
 }
 
 // CreateSession creates a new tmux session

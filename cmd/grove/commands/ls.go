@@ -1,13 +1,13 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/plugins"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -123,7 +123,7 @@ var lsCmd = &cobra.Command{
 				currentName = currentTree.DisplayName()
 			}
 
-			output := lsOutput{
+			result := lsOutput{
 				Project:   projectName,
 				Current:   currentName,
 				Worktrees: make([]lsWorktreeOutput, 0, len(trees)),
@@ -181,15 +181,10 @@ var lsCmd = &cobra.Command{
 					}
 				}
 
-				output.Worktrees = append(output.Worktrees, wo)
+				result.Worktrees = append(result.Worktrees, wo)
 			}
 
-			jsonBytes, err := json.MarshalIndent(output, "", "  ")
-			if err != nil {
-				return fmt.Errorf("failed to marshal JSON: %w", err)
-			}
-			fmt.Println(string(jsonBytes))
-			return nil
+			return output.PrintJSON(result)
 		}
 
 		// Default: formatted table output using cli.Table
