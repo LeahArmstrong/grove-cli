@@ -28,10 +28,7 @@ grove() {
             local other_lines=""
 
             while IFS= read -r line; do
-                if [[ "$line" == GROVE_CD:* ]]; then
-                    cd_target="${line#GROVE_CD:}"
-                    should_cd=1
-                elif [[ "$line" == cd:* ]]; then
+                if [[ "$line" == cd:* ]]; then
                     cd_target="${line#cd:}"
                     should_cd=1
                 elif [[ "$line" == tmux-attach:* ]]; then

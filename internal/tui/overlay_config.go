@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/LeahArmstrong/grove-cli/internal/config"
 )
@@ -574,8 +575,8 @@ func renderConfig(s *ConfigState, width int) string {
 			if maxValWidth < 10 {
 				maxValWidth = 10
 			}
-			if len(value) > maxValWidth {
-				value = value[:maxValWidth-3] + "..."
+			if lipgloss.Width(value) > maxValWidth {
+				value = truncate(value, maxValWidth)
 			}
 
 			// Use warning color for changed fields

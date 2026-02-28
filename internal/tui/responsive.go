@@ -6,9 +6,9 @@ type Layout int
 const (
 	// LayoutNarrow is for terminals under 80 chars — hide non-essential columns.
 	LayoutNarrow Layout = iota
-	// LayoutMedium is for 80–120 chars — stacked layout, all columns visible.
+	// LayoutMedium is for 80–100 chars — stacked layout, all columns visible.
 	LayoutMedium
-	// LayoutWide is for >120 chars — side-by-side layout.
+	// LayoutWide is for >100 chars — side-by-side layout.
 	LayoutWide
 )
 

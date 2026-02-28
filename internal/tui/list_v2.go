@@ -184,11 +184,11 @@ type WorktreeDelegateV2 struct {
 	BranchWidth int
 
 	// Cached styles (depend only on static Colors, computed once)
-	divStyle      lipgloss.Style
-	divStyleSel   lipgloss.Style
-	branchStyle   lipgloss.Style
+	divStyle       lipgloss.Style
+	divStyleSel    lipgloss.Style
+	branchStyle    lipgloss.Style
 	branchStyleSel lipgloss.Style
-	selBgStyle    lipgloss.Style
+	selBgStyle     lipgloss.Style
 }
 
 // initStyles pre-computes the static styles used in the render hot path.
@@ -312,7 +312,7 @@ func (d WorktreeDelegateV2) Render(w io.Writer, m list.Model, index int, listIte
 	ageLen := 0
 	if item.CommitAge != "" {
 		age = compactAge(item.CommitAge)
-		ageLen = len(age)
+		ageLen = lipgloss.Width(age)
 	}
 
 	// Rule fill: bridges gap between indicators and age

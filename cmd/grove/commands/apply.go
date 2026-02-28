@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
-	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -62,11 +61,7 @@ Examples:
 		w := cli.NewStdout()
 		stderr := cli.NewStderr()
 
-		// Load config to check constraints
-		cfg, err := config.Load()
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
+		cfg := ctx.Config
 
 		mgr, err := worktree.NewManager(ctx.ProjectRoot)
 		if err != nil {
