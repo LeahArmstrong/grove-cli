@@ -11,6 +11,7 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/git"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
@@ -188,7 +189,9 @@ Examples:
 			}
 
 			// Remove from state
-			_ = ctx.State.RemoveWorktree(c.Name)
+			if err := ctx.State.RemoveWorktree(c.Name); err != nil {
+				log.Printf("failed to remove worktree %q from state: %v", c.Name, err)
+			}
 
 			// Kill tmux session if exists
 			sessionName := worktree.TmuxSessionName(projectName, c.Name)

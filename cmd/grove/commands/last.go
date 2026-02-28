@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -63,14 +64,18 @@ var lastCmd = &cobra.Command{
 		currentTree, _ := mgr.GetCurrent()
 		if currentTree != nil {
 			// Update last_worktree in state before switching
-			_ = ctx.State.SetLastWorktree(currentTree.DisplayName())
+			if err := ctx.State.SetLastWorktree(currentTree.DisplayName()); err != nil {
+				log.Printf("failed to set last worktree %q: %v", currentTree.DisplayName(), err)
+			}
 		}
 
 		// Store current session as last if inside tmux
 		if tmux.IsInsideTmux() {
 			currentSession, err := tmux.GetCurrentSession()
 			if err == nil {
-				_ = tmux.StoreLastSession(currentSession)
+				if err := tmux.StoreLastSession(currentSession); err != nil {
+					log.Printf("failed to store last session %q: %v", currentSession, err)
+				}
 			}
 		}
 
@@ -87,7 +92,9 @@ var lastCmd = &cobra.Command{
 		}
 
 		// Update last_accessed_at for target worktree
-		_ = ctx.State.TouchWorktree(targetTree.DisplayName())
+		if err := ctx.State.TouchWorktree(targetTree.DisplayName()); err != nil {
+			log.Printf("failed to touch worktree %q: %v", targetTree.DisplayName(), err)
+		}
 
 		// JSON output mode
 		if lastJSON {

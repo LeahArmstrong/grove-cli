@@ -127,7 +127,11 @@ func setupCreatedWorktree(ctx *GroveContext, mgr *worktree.Manager, name, branch
 	}
 
 	// Symlink config.toml from main worktree
-	_ = grove.EnsureConfigSymlink(ctx.ProjectRoot, wt.Path)
+	if err := grove.EnsureConfigSymlink(ctx.ProjectRoot, wt.Path); err != nil {
+		if !opts.JSONOutput {
+			cli.Warning(w, "Failed to symlink config: %v", err)
+		}
+	}
 
 	// Register worktree in state
 	now := time.Now()

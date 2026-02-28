@@ -12,6 +12,7 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/grove"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
@@ -186,7 +187,11 @@ Examples:
 		cli.Success(w, "Created worktree '%s' with branch '%s'", name, newBranchName)
 
 		// Symlink config.toml from main worktree
-		_ = grove.EnsureConfigSymlink(ctx.ProjectRoot, newTree.Path)
+		if err := grove.EnsureConfigSymlink(ctx.ProjectRoot, newTree.Path); err != nil {
+			if !forkJSON {
+				cli.Warning(w, "Failed to symlink config: %v", err)
+			}
+		}
 
 		// Apply WIP patch to new worktree if needed
 		if len(wipPatch) > 0 && (forkMoveWIP || forkCopyWIP) {
@@ -269,13 +274,17 @@ Examples:
 		// Switch to new worktree unless --no-switch
 		if !forkNoSwitch {
 			// Update last_worktree before switching
-			_ = ctx.State.SetLastWorktree(parentName)
+			if err := ctx.State.SetLastWorktree(parentName); err != nil {
+				log.Printf("failed to set last worktree %q: %v", parentName, err)
+			}
 
 			// Store current session as last if inside tmux
 			if tmux.IsInsideTmux() {
 				currentSession, err := tmux.GetCurrentSession()
 				if err == nil {
-					_ = tmux.StoreLastSession(currentSession)
+					if err := tmux.StoreLastSession(currentSession); err != nil {
+						log.Printf("failed to store last session %q: %v", currentSession, err)
+					}
 				}
 			}
 
@@ -291,7 +300,9 @@ Examples:
 			}
 
 			// Update last_accessed_at for target worktree
-			_ = ctx.State.TouchWorktree(name)
+			if err := ctx.State.TouchWorktree(name); err != nil {
+				log.Printf("failed to touch worktree %q: %v", name, err)
+			}
 
 			// Skip cd directive when tmux switch already moved the user
 			if !tmuxSwitched {

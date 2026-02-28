@@ -39,10 +39,18 @@ func IsTmuxAvailable() bool {
 }
 
 // CreateSession creates a new detached tmux session.
-// Callers are responsible for checking SessionExists beforehand if needed.
+// If the session already exists, this is a no-op (idempotent).
 func CreateSession(name, path string) error {
 	if name == "" {
 		return fmt.Errorf("session name cannot be empty")
+	}
+
+	exists, err := SessionExists(name)
+	if err != nil {
+		return fmt.Errorf("check session exists: %w", err)
+	}
+	if exists {
+		return nil
 	}
 
 	cmd := exec.Command("tmux", "new-session", "-d", "-s", name, "-c", path)
@@ -313,10 +321,18 @@ func parseIntOrZero(s string) int {
 
 // CreateSessionWithCommand creates a new detached tmux session running a specific command.
 // If command is empty, behaves identically to CreateSession (runs default shell).
-// Callers are responsible for checking SessionExists beforehand if needed.
+// If the session already exists, this is a no-op (idempotent).
 func CreateSessionWithCommand(name, path, command string) error {
 	if name == "" {
 		return fmt.Errorf("session name cannot be empty")
+	}
+
+	exists, err := SessionExists(name)
+	if err != nil {
+		return fmt.Errorf("check session exists: %w", err)
+	}
+	if exists {
+		return nil
 	}
 
 	args := []string{"new-session", "-d", "-s", name, "-c", path}

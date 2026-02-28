@@ -214,9 +214,9 @@ func TestCreateSessionWithCommand_AlreadyExists(t *testing.T) {
 	}
 	defer func() { _ = KillSession(session) }()
 
-	err := CreateSessionWithCommand(session, "/tmp", "")
-	if err == nil {
-		t.Error("expected error when creating duplicate session")
+	// Idempotent: second create should succeed (no-op)
+	if err := CreateSessionWithCommand(session, "/tmp", ""); err != nil {
+		t.Errorf("expected idempotent create to succeed, got: %v", err)
 	}
 }
 

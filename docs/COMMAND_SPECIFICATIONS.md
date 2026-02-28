@@ -791,14 +791,16 @@ Flags:
 
 **Behavior:**
 
-1. Read last worktree from state file (`~/.local/state/grove/last`)
+1. Read last worktree from `.grove/state.json` (`State.LastWorktree` field)
 2. If exists: equivalent to `grove to <last>`
 3. If not exists: error
 
 **State File Format:**
-```
-# ~/.local/state/grove/{project}/last
-grove-cli-testing
+```json
+// .grove/state.json (last_worktree field)
+{
+  "last_worktree": "testing"
+}
 ```
 
 **Output (Success):**
@@ -1916,38 +1918,3 @@ func hasShellIntegration() bool {
 
 ---
 
-## State Storage
-
-### Locations
-
-| Data | Location | Format |
-|------|----------|--------|
-| Global config | `~/.config/grove/config.toml` | TOML |
-| Project config | `.grove/config.toml` | TOML |
-| Last worktree | `~/.local/state/grove/{project}/last` | Plain text |
-| Worktree metadata | `.grove/worktrees/{name}.toml` | TOML |
-| Freeze state | Tmux session variable `@grove_frozen` | Boolean |
-
-### State File: last
-
-```
-# ~/.local/state/grove/grove-cli/last
-grove-cli-testing
-```
-
-Updated on every `grove to` or `grove last` (before switch).
-
-### State File: worktree metadata
-
-```toml
-# .grove/worktrees/testing.toml
-[worktree]
-name = "testing"
-created = 2024-01-15T10:30:00Z
-branch = "testing"
-from = "main"
-
-[time]
-total_seconds = 14523
-last_active = 2024-01-16T15:45:00Z
-```

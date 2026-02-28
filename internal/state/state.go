@@ -14,7 +14,7 @@ import (
 // CurrentVersion is the current state schema version
 const CurrentVersion = 1
 
-// State represents the persisted state (V2 schema)
+// State represents the persisted state (schema version 1)
 type State struct {
 	Version      int                       `json:"version"`
 	Project      string                    `json:"project"`

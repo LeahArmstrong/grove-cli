@@ -11,6 +11,7 @@ import (
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
@@ -190,7 +191,9 @@ Examples:
 			// Update last_synced_at
 			now := time.Now()
 			ws.LastSyncedAt = &now
-			_ = ctx.State.AddWorktree(name, ws)
+			if err := ctx.State.AddWorktree(name, ws); err != nil {
+				log.Printf("failed to update worktree %q state: %v", name, err)
+			}
 
 			result.Synced = append(result.Synced, SyncedWorktree{
 				Name:         name,

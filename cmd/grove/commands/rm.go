@@ -208,7 +208,9 @@ Examples:
 				MainPath: ctx.ProjectRoot,
 			}
 			cli.Step(w, "Running post-remove hooks...")
-			_ = hookExecutor.Execute(hooks.EventPostRemove, hookCtx)
+			if err := hookExecutor.Execute(hooks.EventPostRemove, hookCtx); err != nil {
+				cli.Warning(w, "Post-remove hook had errors: %v", err)
+			}
 		}
 
 		// Fire plugin post-remove hook

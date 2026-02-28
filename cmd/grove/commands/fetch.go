@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/state"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -105,7 +106,9 @@ func fetchItem(ctx *GroveContext, itemType string, number int) error {
 			CreatedAt:      now,
 			LastAccessedAt: now,
 		}
-		_ = ctx.State.AddWorktree(worktreeName, wsState)
+		if err := ctx.State.AddWorktree(worktreeName, wsState); err != nil {
+			log.Printf("failed to add worktree %q to state: %v", worktreeName, err)
+		}
 	}
 
 	// Create tmux session if available
@@ -122,7 +125,9 @@ func fetchItem(ctx *GroveContext, itemType string, number int) error {
 	// Get current worktree to update last_worktree
 	currentTree, _ := mgr.GetCurrent()
 	if currentTree != nil {
-		_ = ctx.State.SetLastWorktree(currentTree.DisplayName())
+		if err := ctx.State.SetLastWorktree(currentTree.DisplayName()); err != nil {
+			log.Printf("failed to set last worktree %q: %v", currentTree.DisplayName(), err)
+		}
 	}
 
 	// Switch to the worktree if shell integration is active

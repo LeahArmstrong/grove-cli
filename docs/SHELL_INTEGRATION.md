@@ -50,7 +50,7 @@ The wrapper uses a **directives protocol** — the grove binary writes special l
 
 ### Directive Commands (`grove to`, `grove last`, `grove fork`, `grove fetch`, `grove attach`, `grove open`)
 
-These six commands can emit `cd:` or `tmux-attach:` directives. The wrapper captures their full stdout+stderr, scans it line-by-line, separates directives from normal output, and then:
+These six commands can emit `cd:` or `tmux-attach:` directives. The wrapper captures their stdout (stderr passes through to the terminal), scans it line-by-line, separates directives from normal output, and then:
 
 1. Executes any directory change
 2. Prints normal output

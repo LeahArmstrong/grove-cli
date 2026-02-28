@@ -8,6 +8,7 @@ import (
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -65,7 +66,9 @@ When using shell integration, this will also change your current directory.`,
 			prevWorktree = currentTree.DisplayName()
 			prevWorktreePath = currentTree.Path
 			// Update last_worktree in state before switching
-			_ = ctx.State.SetLastWorktree(prevWorktree)
+			if err := ctx.State.SetLastWorktree(prevWorktree); err != nil {
+				log.Printf("failed to set last worktree %q: %v", prevWorktree, err)
+			}
 		}
 
 		// Build hook context (used by pre/post-switch hooks unless --peek)
@@ -92,7 +95,9 @@ When using shell integration, this will also change your current directory.`,
 		if tmux.IsInsideTmux() {
 			currentSession, err := tmux.GetCurrentSession()
 			if err == nil {
-				_ = tmux.StoreLastSession(currentSession)
+				if err := tmux.StoreLastSession(currentSession); err != nil {
+					log.Printf("failed to store last session %q: %v", currentSession, err)
+				}
 			}
 		}
 
@@ -135,7 +140,22 @@ When using shell integration, this will also change your current directory.`,
 		}
 
 		// Update last_accessed_at for target worktree
-		_ = ctx.State.TouchWorktree(targetTree.DisplayName())
+		if err := ctx.State.TouchWorktree(targetTree.DisplayName()); err != nil {
+			log.Printf("failed to touch worktree %q: %v", targetTree.DisplayName(), err)
+		}
+
+		// Fire post-switch hooks (Docker start, etc.) BEFORE the tmux switch
+		// so the user sees Docker progress in the current session. After the
+		// tmux switch the old session's stderr is no longer visible.
+		// Also fire before the JSON return so machine consumers get hooks too.
+		if !toPeek {
+			if hooks.HasHooks(hooks.EventPostSwitch) {
+				cli.Step(stderr, "Starting services...")
+			}
+			if err := hooks.Fire(hooks.EventPostSwitch, hookCtx); err != nil {
+				cli.Warning(stderr, "post-switch hooks failed: %v", err)
+			}
+		}
 
 		// JSON output mode
 		if toJSON {
@@ -150,18 +170,6 @@ When using shell integration, this will also change your current directory.`,
 
 		// Output directory change command for shell integration
 		hasShellIntegration := os.Getenv("GROVE_SHELL") == "1"
-
-		// Fire post-switch hooks (Docker start, etc.) BEFORE the tmux switch
-		// so the user sees Docker progress in the current session. After the
-		// tmux switch the old session's stderr is no longer visible.
-		if !toPeek {
-			if hooks.HasHooks(hooks.EventPostSwitch) {
-				cli.Step(stderr, "Starting services...")
-			}
-			if err := hooks.Fire(hooks.EventPostSwitch, hookCtx); err != nil {
-				cli.Warning(stderr, "post-switch hooks failed: %v", err)
-			}
-		}
 
 		// Now perform the tmux session switch (if inside tmux)
 		if tmuxMode != "off" && sessionName != "" && tmux.IsInsideTmux() {

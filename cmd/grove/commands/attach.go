@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -77,7 +78,9 @@ This is a tmux-only command — it does not emit cd: directives.`,
 		if tmux.IsInsideTmux() {
 			currentSession, err := tmux.GetCurrentSession()
 			if err == nil {
-				_ = tmux.StoreLastSession(currentSession)
+				if err := tmux.StoreLastSession(currentSession); err != nil {
+					log.Printf("failed to store last session %q: %v", currentSession, err)
+				}
 			}
 		}
 
@@ -101,7 +104,9 @@ This is a tmux-only command — it does not emit cd: directives.`,
 		}
 
 		// Update last_accessed_at for target worktree
-		_ = ctx.State.TouchWorktree(targetTree.DisplayName())
+		if err := ctx.State.TouchWorktree(targetTree.DisplayName()); err != nil {
+			log.Printf("failed to touch worktree %q: %v", targetTree.DisplayName(), err)
+		}
 
 		// JSON output mode
 		if attachJSON {

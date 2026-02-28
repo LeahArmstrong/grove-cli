@@ -59,6 +59,8 @@ func RequireGroveContext(fn func(cmd *cobra.Command, args []string, ctx *GroveCo
 		cfg, err := config.LoadFromGroveDir(groveDir)
 		if err != nil {
 			log.Printf("config load failed, using defaults: %v", err)
+			stderr := cli.NewStderr()
+			cli.Warning(stderr, "Failed to load config, using defaults: %v", err)
 			cfg = config.LoadDefaults()
 		} else {
 			log.Printf("config loaded, docker mode: %v", cfg.IsExternalDockerMode())
@@ -102,7 +104,9 @@ func registerPlugins(cfg *config.Config) *plugins.Manager {
 	if !dockerPlugin.Enabled() {
 		return mgr
 	}
-	_ = dockerPlugin.RegisterHooks(hooks.GlobalRegistry())
+	if err := dockerPlugin.RegisterHooks(hooks.GlobalRegistry()); err != nil {
+		log.Printf("failed to register docker hooks: %v", err)
+	}
 	return mgr
 }
 

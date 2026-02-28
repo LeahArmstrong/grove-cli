@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
@@ -68,7 +69,10 @@ Examples:
 		projectName := mgr.GetProjectName()
 
 		// Step 1: Ensure worktree exists
-		wt, _ := mgr.Find(name)
+		wt, err := mgr.Find(name)
+		if err != nil {
+			return fmt.Errorf("failed to find worktree '%s': %w", name, err)
+		}
 		created := false
 
 		if wt == nil {
@@ -135,15 +139,20 @@ Examples:
 			// Session exists — check if command is already running
 			pane, pErr := tmux.GetPaneInfo(sessionName)
 			if pErr == nil && pane.IsShell() && pane.CurrentCommand != sessionCmd {
-				_ = tmux.SendKeys(sessionName, sessionCmd)
-				if !openJSON {
+				if err := tmux.SendKeys(sessionName, sessionCmd); err != nil {
+					if !openJSON {
+						cli.Warning(w, "Session exists but failed to launch '%s': %v", sessionCmd, err)
+					}
+				} else if !openJSON {
 					cli.Success(w, "Launched '%s' in existing session", sessionCmd)
 				}
 			}
 		}
 
 		// Update state
-		_ = ctx.State.TouchWorktree(name)
+		if err := ctx.State.TouchWorktree(name); err != nil {
+			log.Printf("failed to touch worktree %q: %v", name, err)
+		}
 
 		// JSON output mode
 		if openJSON {

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/exitcode"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
@@ -42,7 +43,7 @@ Examples:
 		slots, err := docker.ListActiveSlots(ctx.Config)
 		if err != nil {
 			if psJSON {
-				fmt.Println("[]")
+				output.PrintJSONError(exitcode.ExternalCommandFailed, fmt.Sprintf("failed to list stacks: %v", err))
 				return nil
 			}
 			cli.Info(w, "Stacks not configured for this project")

@@ -325,16 +325,14 @@ sequenceDiagram
     T->>S: SetLastWorktree(prev)
     T->>H: Fire(pre-switch)
     T->>TM: StoreLastSession(current)
-    alt session exists
-        T->>TM: SwitchSession(sessionName)
-    else session missing
+    opt session missing
         T->>TM: CreateSession(sessionName, path)
-        T->>TM: SwitchSession(sessionName)
     end
     T->>S: TouchWorktree(target)
     T->>H: Fire(post-switch)
+    Note right of T: Hooks fire BEFORE tmux switch<br/>so user sees progress output
     alt inside tmux
-        Note right of T: tmux switch handles navigation
+        T->>TM: SwitchSession(sessionName)
     else shell integration
         T->>SH: stdout "cd:/path/to/worktree"
         SH->>SH: parse directive, execute cd
@@ -411,6 +409,7 @@ sequenceDiagram
     opt !--no-switch
         F->>S: SetLastWorktree(parent)
         F->>TM: SwitchSession(sessionName)
+        F->>S: TouchWorktree(target)
     end
 ```
 
