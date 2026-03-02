@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -39,7 +40,6 @@ func TestRmForceFlag(t *testing.T) {
 		t.Errorf("force shorthand = %q, want %q", f.Shorthand, "f")
 	}
 
-	// Flag description should mention dirty worktrees
 	if f.Usage == "" {
 		t.Error("force flag has no usage description")
 	}
@@ -62,13 +62,11 @@ func TestRmAliases(t *testing.T) {
 }
 
 func TestRmSafetyCheckOrder(t *testing.T) {
-	// Verify the command long description documents protection behavior
 	long := rmCmd.Long
 	if long == "" {
 		t.Fatal("rmCmd.Long is empty")
 	}
 
-	// The long description should mention protected worktrees
 	tests := []struct {
 		name string
 		want string
@@ -79,14 +77,7 @@ func TestRmSafetyCheckOrder(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		found := false
-		for i := 0; i <= len(long)-len(tt.want); i++ {
-			if long[i:i+len(tt.want)] == tt.want {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !strings.Contains(long, tt.want) {
 			t.Errorf("rmCmd.Long does not contain %q", tt.want)
 		}
 	}

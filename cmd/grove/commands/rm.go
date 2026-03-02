@@ -57,7 +57,10 @@ Examples:
 		}
 
 		// Find worktree early — all checks reuse this
-		wt, _ := mgr.Find(name)
+		wt, err := mgr.Find(name)
+		if err != nil {
+			return fmt.Errorf("failed to find worktree: %w", err)
+		}
 		if wt == nil {
 			cli.Error(stderr, "worktree '%s' not found", name)
 			os.Exit(exitcode.ResourceNotFound)
@@ -65,7 +68,7 @@ Examples:
 
 		// Cannot remove the main worktree (unconditional — git won't allow it)
 		if wt.IsMain {
-			cli.Error(stderr, "Cannot remove the main worktree")
+			cli.Error(stderr, "cannot remove the main worktree")
 			cli.Faint(stderr, "The main worktree is your primary project directory.")
 			cli.Faint(stderr, "To remove the entire project, delete it manually.")
 			os.Exit(exitcode.CannotRemove)
@@ -109,7 +112,7 @@ Examples:
 
 		// Cannot remove dirty worktree without --force
 		if wt.IsDirty && !rmForce {
-			cli.Error(stderr, "Worktree '%s' has uncommitted changes:", wt.DisplayName())
+			cli.Error(stderr, "worktree '%s' has uncommitted changes", wt.DisplayName())
 			dirtyFiles, err := mgr.GetDirtyFiles(wt.Path)
 			if err == nil && dirtyFiles != "" {
 				for _, line := range strings.Split(dirtyFiles, "\n") {
