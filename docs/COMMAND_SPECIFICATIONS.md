@@ -581,8 +581,11 @@ Arguments:
   name    Name of worktree to remove (required)
 
 Flags:
-  -f, --force    Remove even if worktree has uncommitted changes
+  -f, --force          Remove dirty worktrees; with --unprotect, remove protected worktrees
+      --unprotect      Allow removing protected worktrees (requires --force)
+      --dry-run        Show what would be removed without making changes
       --keep-branch    Don't delete the associated branch
+      --delete-branch  Delete the associated branch without prompting
 ```
 
 **Behavior:**
