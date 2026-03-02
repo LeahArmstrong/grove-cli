@@ -353,6 +353,16 @@ See [docs/PLUGIN_DEVELOPMENT.md](docs/PLUGIN_DEVELOPMENT.md) for writing custom 
 
 See [docs/SHELL_INTEGRATION.md](docs/SHELL_INTEGRATION.md) for the directive protocol, tab completion internals, and troubleshooting.
 
+## TUI Dashboard
+
+Run `grove` with no arguments inside a grove project:
+
+![Grove TUI Dashboard](docs/demo-showcase.gif)
+
+Navigation: `j`/`k` or arrow keys. `/` to filter. `?` for full keybindings.
+
+See [docs/TUI.md](docs/TUI.md) for the full reference.
+
 ## Requirements
 
 - Git 2.30 or later
