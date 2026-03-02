@@ -266,19 +266,7 @@ See [docs/SHELL_INTEGRATION.md](docs/SHELL_INTEGRATION.md) for details on how th
 
 Run `grove` with no arguments inside a grove project:
 
-```
- grove
-  ❯ feature-login    main          3m ago    ● dirty  ⬡ tmux
-    feature-auth     auth          1h ago    ✓ clean  ⬡ tmux
-    hotfix-css       fix/css       2d ago    ✓ clean
-────────────────────────────────────────────────────────────
-  feature-login · b3a1f2c · "add login form validation"
-  branch: feat/login  ↑2 ↓0  3 minutes ago
-  M cmd/login.go
-  M internal/auth/session.go
-  + templates/login.html
- [enter] switch  [n] new  [d] delete  [/] filter  [?] help  [q] quit
-```
+![Grove TUI Dashboard](docs/demo-showcase.gif)
 
 Navigation: `j`/`k` or arrow keys. `/` to filter. `?` for full keybindings.
 
