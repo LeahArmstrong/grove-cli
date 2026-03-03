@@ -249,6 +249,11 @@ func buildSlotManager(cfg *config.Config) *SlotManager {
 	return NewSlotManager(slotsFile, maxSlots)
 }
 
+// ResolveComposePath resolves a compose path, expanding ~ to home directory.
+func ResolveComposePath(path string) string {
+	return resolveComposePath(path)
+}
+
 // isAgentMode returns true when the agent mode env var is set and the config
 // has an enabled agent section.
 func isAgentMode(cfg *config.Config) bool {

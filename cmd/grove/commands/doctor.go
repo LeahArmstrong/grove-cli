@@ -2,7 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -62,6 +64,46 @@ Examples:
 				}
 				return ext.Path, nil
 			}) && allPassed
+
+			// Check: env_file configuration
+			envFileName := ext.EnvFileName()
+			composePath := docker.ResolveComposePath(ext.Path)
+
+			if envFileName != ".env" {
+				// Using a non-default env file — check direnv prerequisites
+				allPassed = runCheck(w, "Env file target", func() (string, error) {
+					return envFileName, nil
+				}) && allPassed
+
+				// Check direnv is installed
+				allPassed = runCheck(w, "direnv available", func() (string, error) {
+					if _, err := exec.LookPath("direnv"); err != nil {
+						return "", fmt.Errorf("direnv not found — %s won't be loaded by docker compose without it", envFileName)
+					}
+					return "found in PATH", nil
+				}) && allPassed
+
+				// Check .envrc exists with dotenv_if_exists
+				allPassed = runCheck(w, "direnv loads "+envFileName, func() (string, error) {
+					envrcPath := filepath.Join(composePath, ".envrc")
+					data, err := os.ReadFile(envrcPath)
+					if err != nil {
+						return "", fmt.Errorf(".envrc not found in %s — docker compose won't read %s without direnv", composePath, envFileName)
+					}
+					if !strings.Contains(string(data), envFileName) {
+						return "", fmt.Errorf(".envrc does not reference %s — add: dotenv_if_exists %s", envFileName, envFileName)
+					}
+					return ".envrc configured", nil
+				}) && allPassed
+			} else {
+				// Using default .env — check if .env.local setup is available
+				envrcPath := filepath.Join(composePath, ".envrc")
+				if data, err := os.ReadFile(envrcPath); err == nil {
+					if strings.Contains(string(data), ".env.local") {
+						runInfo(w, "Env file hint", "direnv is configured for .env.local — consider setting env_file = \".env.local\" to avoid dirtying tracked .env")
+					}
+				}
+			}
 
 			// Check: Agent stack config
 			if ext.Agent == nil || ext.Agent.Enabled == nil || !*ext.Agent.Enabled {
