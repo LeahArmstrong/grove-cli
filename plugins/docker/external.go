@@ -226,6 +226,44 @@ func (s *externalStrategy) persistEnvVar(worktreePath string) error {
 	return os.WriteFile(envFile, []byte(strings.Join(lines, "\n")), 0644)
 }
 
+// removeEnvVar removes the env_var entry from the env file if its value matches
+// the given worktree. Called on grove rm to clean up stale entries.
+func (s *externalStrategy) removeEnvVar(worktreePath string) error {
+	envFile := s.envFilePath()
+	key := s.ext.EnvVar
+	rel := s.relativeWorktreePath(worktreePath)
+	expected := key + "=" + rel
+
+	content, err := os.ReadFile(envFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read %s: %w", s.ext.EnvFileName(), err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	filtered := make([]string, 0, len(lines))
+	removed := false
+	for _, l := range lines {
+		if l == expected {
+			removed = true
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+
+	if !removed {
+		return nil
+	}
+
+	result := strings.Join(filtered, "\n")
+	if result == "" {
+		result = "\n"
+	}
+	return os.WriteFile(envFile, []byte(result), 0644)
+}
+
 // envForWorktree returns the environment variable setting for the given worktree path.
 // The value is the relative path from the compose directory (e.g., "./myapp-feature-x").
 func (s *externalStrategy) envForWorktree(worktreePath string) []string {
