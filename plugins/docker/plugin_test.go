@@ -654,6 +654,81 @@ func TestExternalStrategy_PersistEnvVar_NoDoubleEntry(t *testing.T) {
 	}
 }
 
+func TestExternalStrategy_PersistEnvVar_CustomEnvFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	s := newExternalStrategy(&config.Config{
+		Plugins: config.PluginsConfig{
+			Docker: config.DockerPluginConfig{
+				Mode: "external",
+				External: &config.ExternalComposeConfig{
+					Path:     tmpDir,
+					EnvVar:   "APP_DIR",
+					EnvFile:  ".env.local",
+					Services: []string{"app"},
+				},
+			},
+		},
+	})
+
+	worktreePath := filepath.Join(tmpDir, "myapp-feature-x")
+	err := s.persistEnvVar(worktreePath)
+	if err != nil {
+		t.Fatalf("persistEnvVar() error = %v", err)
+	}
+
+	// Should write to .env.local, not .env
+	localData, err := os.ReadFile(filepath.Join(tmpDir, ".env.local"))
+	if err != nil {
+		t.Fatalf("Failed to read .env.local: %v", err)
+	}
+	if !strings.Contains(string(localData), "APP_DIR=./myapp-feature-x") {
+		t.Errorf(".env.local content = %q, want APP_DIR=./myapp-feature-x", string(localData))
+	}
+
+	// .env should NOT exist
+	if _, err := os.Stat(filepath.Join(tmpDir, ".env")); !os.IsNotExist(err) {
+		t.Error("Expected .env to not exist when env_file is .env.local")
+	}
+}
+
+func TestExternalStrategy_PersistEnvVar_SkipsUnchanged(t *testing.T) {
+	tmpDir := t.TempDir()
+	envFile := filepath.Join(tmpDir, ".env")
+
+	// Pre-populate with the value we'll persist
+	if err := os.WriteFile(envFile, []byte("APP_DIR=./myapp-feature-x\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Record modification time
+	infoBefore, _ := os.Stat(envFile)
+
+	s := newExternalStrategy(&config.Config{
+		Plugins: config.PluginsConfig{
+			Docker: config.DockerPluginConfig{
+				Mode: "external",
+				External: &config.ExternalComposeConfig{
+					Path:     tmpDir,
+					EnvVar:   "APP_DIR",
+					Services: []string{"app"},
+				},
+			},
+		},
+	})
+
+	err := s.persistEnvVar(filepath.Join(tmpDir, "myapp-feature-x"))
+	if err != nil {
+		t.Fatalf("persistEnvVar() error = %v", err)
+	}
+
+	// File should not have been rewritten
+	infoAfter, _ := os.Stat(envFile)
+	if !infoBefore.ModTime().Equal(infoAfter.ModTime()) {
+		t.Error("Expected file to not be rewritten when value is unchanged")
+	}
+}
+
 func TestCopyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
