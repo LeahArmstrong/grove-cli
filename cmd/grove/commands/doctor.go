@@ -68,41 +68,28 @@ Examples:
 			// Check: env_file configuration
 			envFileName := ext.EnvFileName()
 			composePath := docker.ResolveComposePath(ext.Path)
+			efResult := checkEnvFileConfig(envFileName, composePath, exec.LookPath)
 
 			if envFileName != ".env" {
-				// Using a non-default env file — check direnv prerequisites
 				allPassed = runCheck(w, "Env file target", func() (string, error) {
 					return envFileName, nil
 				}) && allPassed
 
-				// Check direnv is installed
 				allPassed = runCheck(w, "direnv available", func() (string, error) {
-					if _, err := exec.LookPath("direnv"); err != nil {
-						return "", fmt.Errorf("direnv not found — %s won't be loaded by docker compose without it", envFileName)
+					if efResult.direnvErr != "" && !efResult.direnvInstalled {
+						return "", fmt.Errorf("%s", efResult.direnvErr)
 					}
 					return "found in PATH", nil
 				}) && allPassed
 
-				// Check .envrc exists with dotenv_if_exists
 				allPassed = runCheck(w, "direnv loads "+envFileName, func() (string, error) {
-					envrcPath := filepath.Join(composePath, ".envrc")
-					data, err := os.ReadFile(envrcPath)
-					if err != nil {
-						return "", fmt.Errorf(".envrc not found in %s — docker compose won't read %s without direnv", composePath, envFileName)
-					}
-					if !strings.Contains(string(data), envFileName) {
-						return "", fmt.Errorf(".envrc does not reference %s — add: dotenv_if_exists %s", envFileName, envFileName)
+					if efResult.envrcErr != "" {
+						return "", fmt.Errorf("%s", efResult.envrcErr)
 					}
 					return ".envrc configured", nil
 				}) && allPassed
-			} else {
-				// Using default .env — check if .env.local setup is available
-				envrcPath := filepath.Join(composePath, ".envrc")
-				if data, err := os.ReadFile(envrcPath); err == nil {
-					if strings.Contains(string(data), ".env.local") {
-						runInfo(w, "Env file hint", "direnv is configured for .env.local — consider setting env_file = \".env.local\" to avoid dirtying tracked .env")
-					}
-				}
+			} else if efResult.hintAvailable {
+				runInfo(w, "Env file hint", "direnv is configured for .env.local — consider setting env_file = \".env.local\" to avoid dirtying tracked .env")
 			}
 
 			// Check: Agent stack config
@@ -175,4 +162,52 @@ func runCheck(w *cli.Writer, name string, check func() (string, error)) bool {
 
 func runInfo(w *cli.Writer, name string, detail string) {
 	cli.Info(w, "%s: %s", name, detail)
+}
+
+// envFileCheckResult holds the outcome of an env file configuration check.
+type envFileCheckResult struct {
+	direnvInstalled bool   // whether direnv was found in PATH
+	envrcExists     bool   // whether .envrc exists in the compose directory
+	envrcLoadsFile  bool   // whether .envrc references the env file name
+	hintAvailable   bool   // whether .env.local hint should be shown (default .env mode only)
+	direnvErr       string // error message if direnv check failed
+	envrcErr        string // error message if .envrc check failed
+}
+
+// checkEnvFileConfig inspects the compose directory for direnv/env file readiness.
+// lookPath is injected for testability (pass exec.LookPath in production).
+func checkEnvFileConfig(envFileName, composePath string, lookPath func(string) (string, error)) envFileCheckResult {
+	var result envFileCheckResult
+
+	if envFileName != ".env" {
+		// Non-default env file: verify direnv prerequisites
+		if _, err := lookPath("direnv"); err != nil {
+			result.direnvErr = fmt.Sprintf("direnv not found, %s won't be loaded by docker compose without it", envFileName)
+		} else {
+			result.direnvInstalled = true
+		}
+
+		envrcPath := filepath.Join(composePath, ".envrc")
+		data, err := os.ReadFile(envrcPath)
+		if err != nil {
+			result.envrcErr = fmt.Sprintf(".envrc not found in %s, docker compose won't read %s without direnv", composePath, envFileName)
+		} else {
+			result.envrcExists = true
+			if strings.Contains(string(data), envFileName) {
+				result.envrcLoadsFile = true
+			} else {
+				result.envrcErr = fmt.Sprintf(".envrc does not reference %s, add: dotenv_if_exists %s", envFileName, envFileName)
+			}
+		}
+	} else {
+		// Default .env: check if .env.local setup is available
+		envrcPath := filepath.Join(composePath, ".envrc")
+		if data, err := os.ReadFile(envrcPath); err == nil {
+			if strings.Contains(string(data), ".env.local") {
+				result.hintAvailable = true
+			}
+		}
+	}
+
+	return result
 }
