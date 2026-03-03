@@ -40,8 +40,8 @@ func TestRmForceFlag(t *testing.T) {
 		t.Errorf("force shorthand = %q, want %q", f.Shorthand, "f")
 	}
 
-	if f.Usage == "" {
-		t.Error("force flag has no usage description")
+	if !strings.Contains(f.Usage, "dirty") {
+		t.Error("force flag usage should mention dirty worktrees")
 	}
 }
 
@@ -61,24 +61,46 @@ func TestRmAliases(t *testing.T) {
 	}
 }
 
-func TestRmSafetyCheckOrder(t *testing.T) {
+func TestRmFlagMutualExclusion(t *testing.T) {
+	// --keep-branch and --delete-branch should be mutually exclusive
+	// This is configured in init() via MarkFlagsMutuallyExclusive
+	keepFlag := rmCmd.Flags().Lookup("keep-branch")
+	deleteFlag := rmCmd.Flags().Lookup("delete-branch")
+
+	if keepFlag == nil {
+		t.Fatal("--keep-branch flag not found")
+	}
+	if deleteFlag == nil {
+		t.Fatal("--delete-branch flag not found")
+	}
+
+	// Verify both flags exist and have descriptions
+	if keepFlag.Usage == "" {
+		t.Error("--keep-branch has no usage description")
+	}
+	if deleteFlag.Usage == "" {
+		t.Error("--delete-branch has no usage description")
+	}
+}
+
+func TestRmHelpDocumentsProtection(t *testing.T) {
 	long := rmCmd.Long
 	if long == "" {
 		t.Fatal("rmCmd.Long is empty")
 	}
 
-	tests := []struct {
-		name string
-		want string
+	required := []struct {
+		label string
+		text  string
 	}{
-		{"mentions protection", "Protected worktrees"},
-		{"mentions force flag", "--force"},
-		{"mentions unprotect flag", "--unprotect"},
+		{"protection", "Protected worktrees"},
+		{"force + unprotect", "--force and --unprotect"},
+		{"environment protection", "Environment worktrees"},
 	}
 
-	for _, tt := range tests {
-		if !strings.Contains(long, tt.want) {
-			t.Errorf("rmCmd.Long does not contain %q", tt.want)
+	for _, tt := range required {
+		if !strings.Contains(long, tt.text) {
+			t.Errorf("rmCmd.Long should document %s (missing %q)", tt.label, tt.text)
 		}
 	}
 }

@@ -112,7 +112,7 @@ Examples:
 
 		// Cannot remove dirty worktree without --force
 		if wt.IsDirty && !rmForce {
-			cli.Error(stderr, "worktree '%s' has uncommitted changes", wt.DisplayName())
+			cli.Error(stderr, "worktree '%s' has uncommitted changes", name)
 			dirtyFiles, err := mgr.GetDirtyFiles(wt.Path)
 			if err == nil && dirtyFiles != "" {
 				for _, line := range strings.Split(dirtyFiles, "\n") {
