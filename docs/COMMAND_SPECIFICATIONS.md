@@ -456,7 +456,7 @@ Arguments:
 
 Flags:
   -j, --json   Output as JSON with switch_to field
-      --peek   Lightweight switch: skip hooks (no Docker side effects)
+      --peek   Lightweight switch: skip hooks and tmux (no side effects)
 ```
 
 **Behavior:**
@@ -466,14 +466,14 @@ Flags:
    - Fall back to full name match
    - Error if worktree is stale (directory missing)
 
-2. **Handle tmux session:**
+2. **Handle tmux session** (unless `--peek`):
    - If session exists and inside tmux: `tmux switch-client -t {session}`
    - If session exists and outside tmux: `tmux attach -t {session}`
    - If session doesn't exist: Create it, then attach/switch
 
 3. **Fire pre-switch hooks** (unless `--peek`).
 
-4. **Switch tmux session** (if inside tmux): `tmux switch-client -t {session}`
+4. **Switch tmux session** (if inside tmux, unless `--peek`): `tmux switch-client -t {session}`
 
 5. **Fire post-switch hooks** (Docker start, etc.) before tmux switch so progress is visible in current session (unless `--peek`).
 

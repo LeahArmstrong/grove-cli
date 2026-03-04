@@ -26,7 +26,7 @@ var toCmd = &cobra.Command{
 	Long: `Switch to a worktree by name. If a tmux session exists for the worktree, switch to it.
 If no tmux session exists, create one.
 
-Use --peek for a lightweight switch that skips hooks (no Docker side effects).
+Use --peek for a lightweight switch that skips hooks and tmux (no side effects).
 Useful for code review or quick file checks.
 
 When using shell integration, this will also change your current directory.`,
@@ -103,9 +103,9 @@ When using shell integration, this will also change your current directory.`,
 
 		projectName := mgr.GetProjectName()
 		cfg := ctx.Config
-		tmuxMode := cfg.Tmux.Mode
-		if tmuxMode == "" {
-			tmuxMode = "auto"
+		tmuxMode := cfg.EffectiveTmuxMode()
+		if toPeek {
+			tmuxMode = "off"
 		}
 
 		// Handle tmux session (unless mode is "off")
@@ -240,6 +240,6 @@ func handleDirectoryDrift(sessionName, worktreePath, onSwitch string, stderr *cl
 
 func init() {
 	toCmd.Flags().BoolVarP(&toJSON, "json", "j", false, "Output as JSON with switch_to field")
-	toCmd.Flags().BoolVar(&toPeek, "peek", false, "Lightweight switch: skip hooks (no Docker side effects)")
+	toCmd.Flags().BoolVar(&toPeek, "peek", false, "Lightweight switch: skip hooks and tmux (no side effects)")
 	rootCmd.AddCommand(toCmd)
 }

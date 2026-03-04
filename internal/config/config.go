@@ -476,6 +476,18 @@ func setValueInLines(lines []string, section, field, value string) []string {
 	return inserted
 }
 
+// EffectiveTmuxMode returns the resolved tmux mode, accounting for
+// AgentMode override and defaulting empty to "auto".
+func (c *Config) EffectiveTmuxMode() string {
+	if c.AgentMode {
+		return "off"
+	}
+	if c.Tmux.Mode == "" {
+		return "auto"
+	}
+	return c.Tmux.Mode
+}
+
 // IsExternalDockerMode returns true if the docker plugin is configured for external compose mode.
 func (c *Config) IsExternalDockerMode() bool {
 	return c.Plugins.Docker.Mode == "external"

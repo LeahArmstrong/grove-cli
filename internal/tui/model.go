@@ -1571,8 +1571,8 @@ func Run(mgr *worktree.Manager, stateMgr *state.Manager, projectRoot string, plu
 // Returns true if a tmux session switch happened (caller should skip cd).
 func (m *Model) handleTmuxSwitch(switchPath string) bool {
 	tmuxMode := "auto"
-	if m.cfg != nil && m.cfg.Tmux.Mode != "" {
-		tmuxMode = m.cfg.Tmux.Mode
+	if m.cfg != nil {
+		tmuxMode = m.cfg.EffectiveTmuxMode()
 	}
 
 	if tmuxMode == "off" || !tmux.IsTmuxAvailable() || m.switchToDisplayName == "" {

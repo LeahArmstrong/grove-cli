@@ -61,10 +61,7 @@ This is a tmux-only command — it does not emit cd: directives.`,
 		}
 
 		cfg := ctx.Config
-		tmuxMode := cfg.Tmux.Mode
-		if tmuxMode == "" {
-			tmuxMode = "auto"
-		}
+		tmuxMode := cfg.EffectiveTmuxMode()
 
 		if tmuxMode == "off" {
 			return fmt.Errorf("tmux is disabled in grove configuration (mode: off)")

@@ -1085,6 +1085,36 @@ func TestMergeConfigsProtectionUnion(t *testing.T) {
 	}
 }
 
+func TestEffectiveTmuxMode(t *testing.T) {
+	tests := []struct {
+		name      string
+		mode      string
+		agentMode bool
+		want      string
+	}{
+		{name: "empty defaults to auto", mode: "", agentMode: false, want: "auto"},
+		{name: "explicit auto", mode: "auto", agentMode: false, want: "auto"},
+		{name: "explicit manual", mode: "manual", agentMode: false, want: "manual"},
+		{name: "explicit off", mode: "off", agentMode: false, want: "off"},
+		{name: "agent mode overrides auto", mode: "auto", agentMode: true, want: "off"},
+		{name: "agent mode overrides empty", mode: "", agentMode: true, want: "off"},
+		{name: "agent mode overrides manual", mode: "manual", agentMode: true, want: "off"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Tmux:      TmuxConfig{Mode: tt.mode},
+				AgentMode: tt.agentMode,
+			}
+			got := cfg.EffectiveTmuxMode()
+			if got != tt.want {
+				t.Errorf("EffectiveTmuxMode() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsExternalDockerMode(t *testing.T) {
 	cfg := &Config{}
 	if cfg.IsExternalDockerMode() {

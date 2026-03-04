@@ -101,7 +101,7 @@ grove    # Opens interactive dashboard (inside a grove project)
 | `grove new <name>` | Create a worktree + tmux session + Docker stack |
 | `grove open <name>` | Open a worktree session (create if needed, launch configured command) |
 | `grove to <name>` | Switch to a worktree (changes directory, attaches tmux) |
-| `grove to <name> --peek` | Lightweight switch — skip hooks (no Docker side effects) |
+| `grove to <name> --peek` | Lightweight switch — skip hooks and tmux (no side effects) |
 | `grove rm <name>` | Remove a worktree and kill its tmux session (`--force` to override dirty check) |
 | `grove here` | Show current worktree info (branch, SHA, age, status) |
 | `grove attach [name]` | Attach to a tmux session without changing directory (alias: `a`) |
