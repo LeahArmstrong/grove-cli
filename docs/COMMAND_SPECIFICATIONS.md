@@ -1634,7 +1634,7 @@ Arguments:
 **Output (zsh):**
 ```bash
 # Grove shell integration
-# Add to ~/.zshrc: eval "$(grove init zsh)"
+# Add to ~/.zshrc: eval "$(grove install zsh)"
 
 export GROVE_SHELL=1
 
@@ -1669,10 +1669,10 @@ __grove_bin() {
 # Add to your shell config:
 
 # For zsh (~/.zshrc):
-eval "$(grove init zsh)"
+eval "$(grove install zsh)"
 
 # For bash (~/.bashrc):
-eval "$(grove init bash)"
+eval "$(grove install bash)"
 ```
 
 ---
@@ -1807,7 +1807,7 @@ Environment:
   ✓ direnv available (found in PATH)
   ✓ direnv loads .env.local (.envrc configured)
   ✗ Shell integration not detected
-    → Add to ~/.zshrc: eval "$(grove init zsh)"
+    → Add to ~/.zshrc: eval "$(grove install zsh)"
 
 Configuration:
   ✓ Global config: ~/.config/grove/config.toml

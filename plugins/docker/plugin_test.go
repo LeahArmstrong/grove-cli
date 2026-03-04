@@ -420,6 +420,7 @@ func TestComposeCommand(t *testing.T) {
 	tests := []struct {
 		name         string
 		worktreePath string
+		envFile      string
 		env          []string
 		args         []string
 	}{
@@ -448,7 +449,7 @@ func TestComposeCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := composeCommand(tt.worktreePath, tt.env, tt.args...)
+			cmd := composeCommand(tt.worktreePath, tt.envFile, tt.env, tt.args...)
 			if cmd == nil {
 				t.Fatal("composeCommand() returned nil")
 			}
@@ -457,6 +458,77 @@ func TestComposeCommand(t *testing.T) {
 			}
 			if len(tt.env) > 0 && len(cmd.Env) == 0 {
 				t.Error("Expected env vars to be set")
+			}
+		})
+	}
+}
+
+func TestComposeCommand_EnvFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		envFile     string
+		wantEnvFile bool
+	}{
+		{
+			name:        "empty env file does not add --env-file",
+			envFile:     "",
+			wantEnvFile: false,
+		},
+		{
+			name:        ".env does not add --env-file",
+			envFile:     ".env",
+			wantEnvFile: false,
+		},
+		{
+			name:        ".env.local adds --env-file",
+			envFile:     ".env.local",
+			wantEnvFile: true,
+		},
+		{
+			name:        "custom env file adds --env-file",
+			envFile:     ".env.grove",
+			wantEnvFile: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := composeCommand("/tmp/test", tt.envFile, nil, "up", "-d")
+			if cmd == nil {
+				t.Fatal("composeCommand() returned nil")
+			}
+
+			args := strings.Join(cmd.Args, " ")
+			hasEnvFile := strings.Contains(args, "--env-file")
+			if hasEnvFile != tt.wantEnvFile {
+				t.Errorf("--env-file in args = %v, want %v (args: %s)", hasEnvFile, tt.wantEnvFile, args)
+			}
+
+			if tt.wantEnvFile {
+				if !strings.Contains(args, "--env-file "+tt.envFile) {
+					t.Errorf("expected --env-file %s in args: %s", tt.envFile, args)
+				}
+			}
+		})
+	}
+}
+
+func TestExternalComposeConfig_EnvFileName(t *testing.T) {
+	tests := []struct {
+		name    string
+		envFile string
+		want    string
+	}{
+		{name: "default when empty", envFile: "", want: ".env"},
+		{name: "custom env file", envFile: ".env.local", want: ".env.local"},
+		{name: "explicit .env", envFile: ".env", want: ".env"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ext := &config.ExternalComposeConfig{EnvFile: tt.envFile}
+			got := ext.EnvFileName()
+			if got != tt.want {
+				t.Errorf("EnvFileName() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -619,6 +691,45 @@ func TestExternalStrategy_PersistEnvVar(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExternalStrategy_PersistEnvVar_CustomEnvFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	s := newExternalStrategy(&config.Config{
+		Plugins: config.PluginsConfig{
+			Docker: config.DockerPluginConfig{
+				Mode: "external",
+				External: &config.ExternalComposeConfig{
+					Path:     tmpDir,
+					EnvVar:   "APP_DIR",
+					EnvFile:  ".env.local",
+					Services: []string{"app"},
+				},
+			},
+		},
+	})
+
+	worktreePath := filepath.Join(tmpDir, "myapp-feature-x")
+	err := s.persistEnvVar(worktreePath)
+	if err != nil {
+		t.Fatalf("persistEnvVar() error = %v", err)
+	}
+
+	// Should write to .env.local, not .env
+	localFile := filepath.Join(tmpDir, ".env.local")
+	data, err := os.ReadFile(localFile)
+	if err != nil {
+		t.Fatalf("Failed to read .env.local: %v", err)
+	}
+	if !strings.Contains(string(data), "APP_DIR=./myapp-feature-x") {
+		t.Errorf(".env.local content = %q, want to contain APP_DIR=./myapp-feature-x", string(data))
+	}
+
+	// .env should NOT exist
+	if _, err := os.Stat(filepath.Join(tmpDir, ".env")); err == nil {
+		t.Error("Expected .env to not exist when env_file is .env.local")
 	}
 }
 

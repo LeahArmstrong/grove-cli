@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/shell"
 	"github.com/LeahArmstrong/grove-cli/plugins/docker"
 )
 
@@ -51,6 +53,24 @@ Examples:
 			}
 			return "v" + strings.TrimSpace(string(out)), nil
 		}) && allPassed
+
+		// Check: Shell integration version
+		if v := os.Getenv("GROVE_SHELL_VERSION"); v != "" {
+			allPassed = runCheck(w, "Shell integration", func() (string, error) {
+				shellVer, err := strconv.Atoi(v)
+				if err != nil {
+					return "", fmt.Errorf("invalid version %q: %w", v, err)
+				}
+				if shellVer < shell.ShellVersion {
+					return "", fmt.Errorf("outdated (v%d, current v%d) — re-run: grove setup", shellVer, shell.ShellVersion)
+				}
+				return fmt.Sprintf("v%d (current)", shellVer), nil
+			}) && allPassed
+		} else if os.Getenv("GROVE_SHELL") == "1" {
+			runInfo(w, "Shell integration", "version not set (pre-v2 shell integration)")
+		} else {
+			runInfo(w, "Shell integration", "not active (run grove outside shell wrapper)")
+		}
 
 		// Check: External compose mode
 		cfg := ctx.Config

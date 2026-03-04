@@ -43,7 +43,7 @@ func GenerateZshIntegration() (string, error) {
 # ─────────────────────────────────────────────────────────────────────────────
 
 `
-	output := fmt.Sprintf("%s__GROVE_BIN=\"%s\"\n\n%s", header, binaryPath, zshTemplate)
+	output := fmt.Sprintf("%s__GROVE_BIN=\"%s\"\n__GROVE_SHELL_VERSION=%d\n\n%s", header, binaryPath, ShellVersion, zshTemplate)
 
 	return output, nil
 }
@@ -76,7 +76,7 @@ func GenerateBashIntegration() (string, error) {
 # ─────────────────────────────────────────────────────────────────────────────
 
 `
-	output := fmt.Sprintf("%s__GROVE_BIN=\"%s\"\n\n%s", header, binaryPath, bashTemplate)
+	output := fmt.Sprintf("%s__GROVE_BIN=\"%s\"\n__GROVE_SHELL_VERSION=%d\n\n%s", header, binaryPath, ShellVersion, bashTemplate)
 
 	return output, nil
 }
