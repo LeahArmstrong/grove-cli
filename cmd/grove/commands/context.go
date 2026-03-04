@@ -43,7 +43,7 @@ func RequireGroveContext(fn func(cmd *cobra.Command, args []string, ctx *GroveCo
 		// Warn if shell integration is outdated
 		if v := os.Getenv("GROVE_SHELL_VERSION"); v != "" {
 			if shellVer, err := strconv.Atoi(v); err == nil && shellVer < shell.ShellVersion {
-				fmt.Fprintf(os.Stderr, "grove: shell integration outdated (v%d, current v%d) — run: eval \"$(grove install zsh)\"\n", shellVer, shell.ShellVersion)
+				fmt.Fprintf(os.Stderr, "grove: shell integration outdated (v%d, current v%d) — run: grove setup\n", shellVer, shell.ShellVersion)
 			}
 		}
 

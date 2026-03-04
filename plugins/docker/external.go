@@ -62,6 +62,11 @@ func (s *externalStrategy) OnPostCreate(ctx *hooks.Context) error {
 		return nil
 	}
 
+	if err := s.persistEnvVar(ctx.WorktreePath); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to persist %s to %s: %v\n", s.ext.EnvVar, s.ext.EnvFileName(), err)
+	}
+	s.emitEnvDirective(ctx.WorktreePath)
+
 	return setupWorktreeFiles(s.ext, ctx.WorktreePath, ctx.MainPath)
 }
 

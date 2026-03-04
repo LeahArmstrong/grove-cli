@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
-	"github.com/LeahArmstrong/grove-cli/internal/shell"
 )
 
 var setupCmd = &cobra.Command{
@@ -81,17 +80,7 @@ environment variable export for grove commands.`,
 
 		cli.Success(w, "Added shell integration to %s", rcFile)
 
-		// Generate the integration output for immediate sourcing
-		var output string
-		switch shellName {
-		case "zsh":
-			output, err = shell.GenerateZshIntegration()
-		case "bash":
-			output, err = shell.GenerateBashIntegration()
-		}
-		if err == nil && output != "" {
-			_, _ = fmt.Fprintf(w, "\n  To activate now: source %s\n", rcFile)
-		}
+		_, _ = fmt.Fprintf(w, "\n  To activate now: source %s\n", rcFile)
 
 		return nil
 	},
