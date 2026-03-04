@@ -1390,9 +1390,6 @@ func TestCreateBranchFilterTypingThroughUpdate(t *testing.T) {
 		if m.createState.BranchFilterInput.Value() != "de" {
 			t.Errorf("expected filter 'de', got %q", m.createState.BranchFilterInput.Value())
 		}
-		if m.createState.BranchFilterInput.Value() != "de" {
-			t.Errorf("expected BranchFilter 'de', got %q", m.createState.BranchFilterInput.Value())
-		}
 	})
 }
 
