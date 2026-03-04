@@ -161,7 +161,7 @@ func populateConfigFields(cfg *config.Config) [][]ConfigField {
 	}
 	tmuxMode := cfg.Tmux.Mode
 	if tmuxMode == "" {
-		tmuxMode = "auto"
+		tmuxMode = config.TmuxModeAuto
 	}
 	fields[ConfigTabBehavior] = []ConfigField{
 		{
@@ -179,7 +179,7 @@ func populateConfigFields(cfg *config.Config) [][]ConfigField {
 			Value:       tmuxMode,
 			Default:     tmuxMode,
 			Type:        ConfigEnum,
-			Options:     []string{"auto", "manual", "off"},
+			Options:     []string{config.TmuxModeAuto, config.TmuxModeManual, config.TmuxModeOff},
 			Description: "Tmux session behavior: auto-attach, print instructions, or skip",
 		},
 		{

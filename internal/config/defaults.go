@@ -27,7 +27,7 @@ func LoadDefaults() *Config {
 			Pattern: "{type}/{description}",
 		},
 		Tmux: TmuxConfig{
-			Mode: "auto",
+			Mode: TmuxModeAuto,
 		},
 		Plugins: PluginsConfig{
 			Docker: DockerPluginConfig{

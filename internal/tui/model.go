@@ -1570,12 +1570,12 @@ func Run(mgr *worktree.Manager, stateMgr *state.Manager, projectRoot string, plu
 // handleTmuxSwitch creates/switches to the tmux session for the target worktree.
 // Returns true if a tmux session switch happened (caller should skip cd).
 func (m *Model) handleTmuxSwitch(switchPath string) bool {
-	tmuxMode := "auto"
+	tmuxMode := config.TmuxModeAuto
 	if m.cfg != nil {
 		tmuxMode = m.cfg.EffectiveTmuxMode()
 	}
 
-	if tmuxMode == "off" || !tmux.IsTmuxAvailable() || m.switchToDisplayName == "" {
+	if tmuxMode == config.TmuxModeOff || !tmux.IsTmuxAvailable() || m.switchToDisplayName == "" {
 		return false
 	}
 

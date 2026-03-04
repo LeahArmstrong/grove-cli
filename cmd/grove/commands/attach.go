@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
@@ -63,7 +64,7 @@ This is a tmux-only command — it does not emit cd: directives.`,
 		cfg := ctx.Config
 		tmuxMode := cfg.EffectiveTmuxMode()
 
-		if tmuxMode == "off" {
+		if tmuxMode == config.TmuxModeOff {
 			return fmt.Errorf("tmux is disabled in grove configuration (mode: off)")
 		}
 

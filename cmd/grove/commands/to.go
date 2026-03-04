@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/LeahArmstrong/grove-cli/internal/cli"
+	"github.com/LeahArmstrong/grove-cli/internal/config"
 	"github.com/LeahArmstrong/grove-cli/internal/hooks"
 	"github.com/LeahArmstrong/grove-cli/internal/log"
 	"github.com/LeahArmstrong/grove-cli/internal/output"
@@ -105,13 +106,13 @@ When using shell integration, this will also change your current directory.`,
 		cfg := ctx.Config
 		tmuxMode := cfg.EffectiveTmuxMode()
 		if toPeek {
-			tmuxMode = "off"
+			tmuxMode = config.TmuxModeOff
 		}
 
 		// Handle tmux session (unless mode is "off")
 		var sessionName string
 		var tmuxSwitched bool
-		if tmuxMode != "off" && tmux.IsTmuxAvailable() {
+		if tmuxMode != config.TmuxModeOff && tmux.IsTmuxAvailable() {
 			sessionName = worktree.TmuxSessionName(projectName, targetTree.DisplayName())
 			exists, err := tmux.SessionExists(sessionName)
 			if err != nil {
@@ -132,7 +133,7 @@ When using shell integration, this will also change your current directory.`,
 				if exists {
 					handleDirectoryDrift(sessionName, targetTree.Path, cfg.Tmux.OnSwitch, stderr)
 				}
-			} else if tmuxMode == "manual" && !toJSON {
+			} else if tmuxMode == config.TmuxModeManual && !toJSON {
 				cli.Success(stderr, "Tmux session '%s' ready", sessionName)
 				cli.Faint(stderr, "Run: tmux attach -t %s", sessionName)
 			}
@@ -172,7 +173,7 @@ When using shell integration, this will also change your current directory.`,
 		hasShellIntegration := os.Getenv("GROVE_SHELL") == "1"
 
 		// Now perform the tmux session switch (if inside tmux)
-		if tmuxMode != "off" && sessionName != "" && tmux.IsInsideTmux() {
+		if tmuxMode != config.TmuxModeOff && sessionName != "" && tmux.IsInsideTmux() {
 			if err := tmux.SwitchSession(sessionName); err != nil {
 				return fmt.Errorf("failed to switch session: %w", err)
 			}
@@ -187,7 +188,7 @@ When using shell integration, this will also change your current directory.`,
 				// Shell wrapper will parse this and execute cd
 				cli.Directive("cd", targetTree.Path)
 				// In auto mode outside tmux, emit tmux-attach directive for shell wrapper
-				if tmuxMode == "auto" && sessionName != "" {
+				if tmuxMode == config.TmuxModeAuto && sessionName != "" {
 					cli.Directive("tmux-attach", sessionName)
 				}
 			} else {
@@ -200,7 +201,7 @@ When using shell integration, this will also change your current directory.`,
 				cli.Faint(stderr, "To change directory manually:")
 				cli.Faint(stderr, "  cd %s", targetTree.Path)
 				// In auto mode outside tmux without shell wrapper, attach directly
-				if tmuxMode == "auto" && sessionName != "" {
+				if tmuxMode == config.TmuxModeAuto && sessionName != "" {
 					if err := tmux.AttachSession(sessionName); err != nil {
 						return fmt.Errorf("failed to attach session: %w", err)
 					}

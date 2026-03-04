@@ -34,9 +34,9 @@ func Validate(cfg *Config) error {
 
 	// Validate tmux mode
 	validTmuxMode := map[string]bool{
-		"auto":   true,
-		"manual": true,
-		"off":    true,
+		TmuxModeAuto:   true,
+		TmuxModeManual: true,
+		TmuxModeOff:    true,
 	}
 	if cfg.Tmux.Mode != "" && !validTmuxMode[cfg.Tmux.Mode] {
 		return fmt.Errorf("tmux.mode must be one of: auto, manual, off (got %q)", cfg.Tmux.Mode)

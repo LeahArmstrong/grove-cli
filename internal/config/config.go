@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+// Tmux mode constants.
+const (
+	TmuxModeAuto   = "auto"
+	TmuxModeManual = "manual"
+	TmuxModeOff    = "off"
+)
+
 // TestConfig controls test command behavior
 type TestConfig struct {
 	Command string `toml:"command"`
@@ -480,10 +487,10 @@ func setValueInLines(lines []string, section, field, value string) []string {
 // AgentMode override and defaulting empty to "auto".
 func (c *Config) EffectiveTmuxMode() string {
 	if c.AgentMode {
-		return "off"
+		return TmuxModeOff
 	}
 	if c.Tmux.Mode == "" {
-		return "auto"
+		return TmuxModeAuto
 	}
 	return c.Tmux.Mode
 }
