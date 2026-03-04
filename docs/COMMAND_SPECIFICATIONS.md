@@ -1804,8 +1804,8 @@ Environment:
   ✓ Tmux version 3.3a (minimum: 3.0)
   ✓ Docker version 24.0.0
   ✓ Env file target (.env.local)
-  ✓ direnv available (found in PATH)
-  ✓ direnv loads .env.local (.envrc configured)
+  ✓ Env file loader (direnv found in PATH)
+  ✓ Env file loader configured (configured)
   ✗ Shell integration not detected
     → Add to ~/.zshrc: eval "$(grove install zsh)"
 
