@@ -108,7 +108,6 @@ func (e *ExternalComposeConfig) EnvFileName() string {
 	return ".env"
 }
 
-
 // AgentStackConfig configures agent stack support for external compose mode.
 type AgentStackConfig struct {
 	Enabled      *bool    `toml:"enabled"`

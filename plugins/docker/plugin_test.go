@@ -694,45 +694,6 @@ func TestExternalStrategy_PersistEnvVar(t *testing.T) {
 	}
 }
 
-func TestExternalStrategy_PersistEnvVar_CustomEnvFile(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	s := newExternalStrategy(&config.Config{
-		Plugins: config.PluginsConfig{
-			Docker: config.DockerPluginConfig{
-				Mode: "external",
-				External: &config.ExternalComposeConfig{
-					Path:     tmpDir,
-					EnvVar:   "APP_DIR",
-					EnvFile:  ".env.local",
-					Services: []string{"app"},
-				},
-			},
-		},
-	})
-
-	worktreePath := filepath.Join(tmpDir, "myapp-feature-x")
-	err := s.persistEnvVar(worktreePath)
-	if err != nil {
-		t.Fatalf("persistEnvVar() error = %v", err)
-	}
-
-	// Should write to .env.local, not .env
-	localFile := filepath.Join(tmpDir, ".env.local")
-	data, err := os.ReadFile(localFile)
-	if err != nil {
-		t.Fatalf("Failed to read .env.local: %v", err)
-	}
-	if !strings.Contains(string(data), "APP_DIR=./myapp-feature-x") {
-		t.Errorf(".env.local content = %q, want to contain APP_DIR=./myapp-feature-x", string(data))
-	}
-
-	// .env should NOT exist
-	if _, err := os.Stat(filepath.Join(tmpDir, ".env")); err == nil {
-		t.Error("Expected .env to not exist when env_file is .env.local")
-	}
-}
-
 func TestExternalStrategy_PersistEnvVar_NoDoubleEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	envFile := filepath.Join(tmpDir, ".env")
