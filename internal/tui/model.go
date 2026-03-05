@@ -779,6 +779,10 @@ func (m Model) handleDeleteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.deleteState.Deleting {
+		return m, nil
+	}
+
 	switch {
 	case key.Matches(msg, m.keys.Confirm):
 		if m.deleteState.Item == nil {
@@ -787,7 +791,8 @@ func (m Model) handleDeleteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		name := m.deleteState.Item.ShortName
-		return m, deleteWorktreeCmd(m.worktreeMgr, m.stateMgr, m.projectRoot, name, m.deleteState.DeleteBranch)
+		m.deleteState.Deleting = true
+		return m, tea.Batch(m.spinner.Tick, deleteWorktreeCmd(m.worktreeMgr, m.stateMgr, m.projectRoot, name, m.deleteState.DeleteBranch))
 
 	case key.Matches(msg, m.keys.Escape), key.Matches(msg, m.keys.Deny):
 		m.activeView = ViewDashboard

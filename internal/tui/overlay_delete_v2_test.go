@@ -155,6 +155,35 @@ func TestRenderDeleteV2_NarrowWidth(t *testing.T) {
 	}
 }
 
+func TestRenderDeleteV2_DeletingState(t *testing.T) {
+	s := &DeleteState{
+		Item: &WorktreeItem{
+			ShortName: "feature-auth",
+			Branch:    "feature/authentication",
+		},
+		Deleting: true,
+	}
+
+	view := renderDeleteV2(s, 70)
+
+	if !strings.Contains(view, "Deleting") {
+		t.Error("expected 'Deleting' text in view during deletion")
+	}
+	if !strings.Contains(view, "feature-auth") {
+		t.Error("expected worktree name in deleting view")
+	}
+	if !strings.Contains(view, "Please wait") {
+		t.Error("expected 'Please wait' in footer during deletion")
+	}
+	// Should NOT contain confirmation UI
+	if strings.Contains(view, "confirm") {
+		t.Error("should not show confirmation UI while deleting")
+	}
+	if strings.Contains(view, "toggle") {
+		t.Error("should not show toggle option while deleting")
+	}
+}
+
 func TestRenderDeleteV2_FooterActions(t *testing.T) {
 	s := &DeleteState{
 		Item: &WorktreeItem{
