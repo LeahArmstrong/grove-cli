@@ -287,6 +287,7 @@ Requires `gh` CLI (installed and authenticated to your repo).
 | `grove config --hooks` | View or edit hooks configuration |
 | `grove init` | Initialize Grove in a git repo |
 | `grove setup` | Auto-configure shell integration |
+| `grove install <shell>` | Print shell integration code (use in `eval "$(grove install zsh)"`) |
 | `grove doctor` | Health check: binary, shell integration, git, tmux, Docker |
 | `grove repair` | Fix state inconsistencies and orphaned tmux sessions |
 | `grove version` | Show version information |
@@ -432,10 +433,9 @@ On `grove to feature-x`: stop current stack → update `APP_DIR` → start new s
 Multiple agents, each with their own Docker stack and port offsets. No conflicts.
 
 ```bash
-grove up --isolated           # allocate next available slot
-grove up --isolated --slot 3  # pin to a specific slot
-grove agent-status --json     # see all running stacks
-grove down --slot 2           # clean up a specific slot
+grove up --isolated      # allocate next available slot
+grove ps --json          # see all running stacks
+grove down               # stop the current worktree's isolated stack
 ```
 
 ```toml
