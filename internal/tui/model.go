@@ -457,7 +457,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toast.Tick()
 		}
 		var spinnerCmds []tea.Cmd
-		if m.loading || (m.createState != nil && m.createState.Creating) || (m.forkState != nil && m.forkState.Forking) || (m.syncState != nil && m.syncState.Syncing) || (m.prState != nil && (m.prState.Loading || m.prState.Creating)) || (m.issueState != nil && (m.issueState.Loading || m.issueState.Creating)) || (m.toast != nil && m.toast.Current != nil) {
+		if m.loading || (m.createState != nil && m.createState.Creating) || (m.forkState != nil && m.forkState.Forking) || (m.syncState != nil && m.syncState.Syncing) || (m.deleteState != nil && m.deleteState.Deleting) || (m.prState != nil && (m.prState.Loading || m.prState.Creating)) || (m.issueState != nil && (m.issueState.Loading || m.issueState.Creating)) || (m.toast != nil && m.toast.Current != nil) {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			spinnerCmds = append(spinnerCmds, cmd)

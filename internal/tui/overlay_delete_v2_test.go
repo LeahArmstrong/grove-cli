@@ -155,6 +155,32 @@ func TestRenderDeleteV2_NarrowWidth(t *testing.T) {
 	}
 }
 
+func TestRenderDelete_DeletingState(t *testing.T) {
+	s := &DeleteState{
+		Item: &WorktreeItem{
+			ShortName: "feature-auth",
+			Branch:    "feature/authentication",
+		},
+		Deleting: true,
+	}
+
+	view := renderDelete(s, 70)
+
+	if !strings.Contains(view, "Deleting") {
+		t.Error("expected 'Deleting' text in V1 view during deletion")
+	}
+	if !strings.Contains(view, "feature-auth") {
+		t.Error("expected worktree name in V1 deleting view")
+	}
+	// Should NOT contain confirmation UI
+	if strings.Contains(view, "confirm") {
+		t.Error("should not show confirmation UI while deleting")
+	}
+	if strings.Contains(view, "cancel") {
+		t.Error("should not show cancel option while deleting")
+	}
+}
+
 func TestRenderDeleteV2_DeletingState(t *testing.T) {
 	s := &DeleteState{
 		Item: &WorktreeItem{

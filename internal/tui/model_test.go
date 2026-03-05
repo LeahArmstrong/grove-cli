@@ -833,6 +833,29 @@ func TestWorktreeDeletedMsgWithError(t *testing.T) {
 	}
 }
 
+func TestWorktreeDeletedMsgErrorDuringDeletion(t *testing.T) {
+	m := newTestModel(withItems(3), withSize(80, 24))
+	m.activeView = ViewDelete
+	m.deleteState = &DeleteState{
+		Item:     &WorktreeItem{ShortName: "test"},
+		Deleting: true,
+	}
+	m = sendMsg(m, worktreeDeletedMsg{name: "test", err: errTest})
+
+	// deleteState should be cleared
+	if m.deleteState != nil {
+		t.Error("expected deleteState to be nil after error")
+	}
+	// Should return to dashboard
+	if m.activeView != ViewDashboard {
+		t.Errorf("expected ViewDashboard, got %d", m.activeView)
+	}
+	// Toast should show error
+	if m.toast.Current == nil || m.toast.Current.Level != ToastError {
+		t.Error("expected error toast on delete failure during deletion")
+	}
+}
+
 func TestBulkDeleteDoneMsg(t *testing.T) {
 	m := newTestModel(withItems(5), withSize(80, 24))
 	m.activeView = ViewBulk
