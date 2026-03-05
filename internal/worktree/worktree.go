@@ -84,6 +84,36 @@ func (m *Manager) Create(name, branch string) error {
 	return nil
 }
 
+// CreateFromRef creates a new worktree with a new branch starting from a specific ref.
+// The name parameter is the short name (e.g., "testing")
+// The branch parameter is the new branch name to create.
+// The fromRef parameter is the starting point (e.g., "develop", "origin/main", a commit SHA).
+func (m *Manager) CreateFromRef(name, branch, fromRef string) error {
+	if name == "" {
+		return fmt.Errorf("worktree name cannot be empty")
+	}
+
+	// Get full name with project prefix
+	fullName := m.FullName(name)
+
+	// Worktree path is relative to repo root's parent
+	wtPath := filepath.Join(filepath.Dir(m.repoRoot), fullName)
+
+	// Check if worktree already exists
+	if _, err := os.Stat(wtPath); err == nil {
+		return fmt.Errorf("worktree already exists at %s", wtPath)
+	}
+
+	// Create worktree with new branch from the specified ref
+	args := []string{"worktree", "add", "-b", branch, wtPath, fromRef}
+	output, err := cmdexec.CombinedOutput(context.TODO(), "git", args, m.repoRoot, cmdexec.GitLocal)
+	if err != nil {
+		return fmt.Errorf("failed to create worktree: %s: %w", string(output), err)
+	}
+
+	return nil
+}
+
 // CreateFromExisting creates a worktree from an existing branch
 // The name parameter is the short name (e.g., "testing")
 // The directory will be created with the full name including project prefix
