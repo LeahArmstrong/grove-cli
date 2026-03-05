@@ -179,5 +179,7 @@ func init() {
 	newCmd.Flags().StringVarP(&newFrom, "from", "f", "", "Create branch from this ref (default: HEAD)")
 	newCmd.Flags().StringVar(&newMirror, "mirror", "", "Create environment worktree tracking a remote branch (e.g., origin/main)")
 	newCmd.Flags().BoolVar(&newNoDocker, "no-docker", false, "Skip Docker auto-start")
+	newCmd.MarkFlagsMutuallyExclusive("mirror", "from")
+	newCmd.MarkFlagsMutuallyExclusive("mirror", "branch")
 	rootCmd.AddCommand(newCmd)
 }
