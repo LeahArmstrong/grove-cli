@@ -89,23 +89,23 @@ Examples:
 			return "found", nil
 		})
 
-		// Check: Docker available
-		allPassed = runCheck(w, "Docker available", func() (string, error) {
+		// Check: Docker available (informational in Tier 1 — project checks validate Docker usage)
+		runCheck(w, "Docker available", func() (string, error) {
 			if _, err := exec.LookPath("docker"); err != nil {
-				return "", fmt.Errorf("docker not found in PATH")
+				return "", fmt.Errorf("docker not found in PATH (optional, needed for grove new/to)")
 			}
 			return "found in PATH", nil
-		}) && allPassed
+		})
 
 		// Check: Docker daemon running
-		allPassed = runCheck(w, "Docker running", func() (string, error) {
+		runCheck(w, "Docker running", func() (string, error) {
 			cmd := exec.Command("docker", "info", "--format", "{{.ServerVersion}}")
 			out, err := cmd.Output()
 			if err != nil {
-				return "", fmt.Errorf("docker daemon not responding (is Docker running?)")
+				return "", fmt.Errorf("docker daemon not responding (optional, needed for grove new/to)")
 			}
 			return "v" + strings.TrimSpace(string(out)), nil
-		}) && allPassed
+		})
 
 		// ── Tier 2: Project checks (only when in a grove project) ──
 

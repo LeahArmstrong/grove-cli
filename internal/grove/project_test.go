@@ -279,7 +279,7 @@ func TestMustProjectRoot(t *testing.T) {
 	}
 }
 
-func TestGetMainWorktreePath(t *testing.T) {
+func TestMainWorktreePath(t *testing.T) {
 	// Set up a real git repo to test against
 	dir := t.TempDir()
 	dir, _ = filepath.EvalSymlinks(dir)
@@ -300,12 +300,12 @@ func TestGetMainWorktreePath(t *testing.T) {
 	run("git", "init")
 	run("git", "commit", "--allow-empty", "-m", "init")
 
-	got, err := GetMainWorktreePath(dir)
+	got, err := getMainWorktreePath(dir)
 	if err != nil {
-		t.Fatalf("GetMainWorktreePath() error = %v", err)
+		t.Fatalf("getMainWorktreePath() error = %v", err)
 	}
 	if got != dir {
-		t.Errorf("GetMainWorktreePath() = %q, want %q", got, dir)
+		t.Errorf("getMainWorktreePath() = %q, want %q", got, dir)
 	}
 }
 

@@ -61,11 +61,6 @@ func RequireGroveContext(fn func(cmd *cobra.Command, args []string, ctx *GroveCo
 				fmt.Fprintln(os.Stderr)
 				cli.Faint(stderr, "Run 'grove init' from the main worktree:")
 				cli.Faint(stderr, "  cd %s && grove init", diag.MainWorktreePath)
-			case grove.ReasonBrokenConfigSymlink:
-				cli.Error(stderr, "config symlink broken: .grove/config.toml → %s (target missing)", diag.SymlinkTarget)
-				fmt.Fprintln(os.Stderr)
-				cli.Faint(stderr, "Run 'grove init' from the main worktree to recreate,")
-				cli.Faint(stderr, "or 'grove repair' to fix symlinks.")
 			default:
 				cli.Error(stderr, "not a grove project")
 				fmt.Fprintln(os.Stderr)

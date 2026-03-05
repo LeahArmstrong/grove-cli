@@ -50,28 +50,6 @@ func TestDiagnoseNoGrove_WorktreeMainMissingGrove(t *testing.T) {
 	}
 }
 
-func TestDiagnoseNoGrove_BrokenConfigSymlink(t *testing.T) {
-	// Set up main repo with .grove, worktree with broken symlink
-	mainDir := t.TempDir()
-	runGit(t, mainDir, "init")
-	runGit(t, mainDir, "commit", "--allow-empty", "-m", "init")
-
-	wtDir := filepath.Join(t.TempDir(), "worktree")
-	runGit(t, mainDir, "worktree", "add", wtDir, "-b", "test-branch")
-
-	// Create .grove in worktree with a broken symlink
-	wtGrove := filepath.Join(wtDir, ".grove")
-	os.MkdirAll(wtGrove, 0755)
-	os.Symlink(filepath.Join(mainDir, ".grove", "config.toml"), filepath.Join(wtGrove, "config.toml"))
-	// Note: main/.grove/config.toml does NOT exist, so symlink is broken
-
-	result := DiagnoseNoGrove(wtDir)
-
-	if result.Reason != ReasonBrokenConfigSymlink {
-		t.Errorf("expected ReasonBrokenConfigSymlink, got %v", result.Reason)
-	}
-}
-
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
