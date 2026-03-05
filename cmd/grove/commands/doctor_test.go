@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -222,6 +223,46 @@ func TestCheckEnvFileConfig_DefaultEnv(t *testing.T) {
 			}
 			if result.configExists {
 				t.Error("configExists should be false in default mode")
+			}
+		})
+	}
+}
+
+func TestCheckGroveBinary(t *testing.T) {
+	tests := []struct {
+		name     string
+		lookPath func(string) (string, error)
+		wantPass bool
+		wantMsg  string
+	}{
+		{
+			name: "binary found",
+			lookPath: func(name string) (string, error) {
+				return "/usr/local/bin/grove", nil
+			},
+			wantPass: true,
+			wantMsg:  "grove",
+		},
+		{
+			name: "binary not found",
+			lookPath: func(name string) (string, error) {
+				return "", fmt.Errorf("not found")
+			},
+			wantPass: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			detail, err := checkGroveBinary(tt.lookPath)
+			if tt.wantPass && err != nil {
+				t.Errorf("expected pass, got error: %v", err)
+			}
+			if !tt.wantPass && err == nil {
+				t.Errorf("expected fail, got pass with: %s", detail)
+			}
+			if tt.wantPass && !strings.Contains(detail, tt.wantMsg) {
+				t.Errorf("expected detail to contain %q, got %q", tt.wantMsg, detail)
 			}
 		})
 	}

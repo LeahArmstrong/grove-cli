@@ -56,7 +56,7 @@ func FindRoot(startDir string) (string, error) {
 	}
 
 	// Fallback: find main worktree's .grove via git
-	mainPath, err := getMainWorktreePath(absDir)
+	mainPath, err := GetMainWorktreePath(absDir)
 	if err == nil && mainPath != "" {
 		groveDir := filepath.Join(mainPath, ".grove")
 		if info, err := os.Stat(groveDir); err == nil && info.IsDir() {
@@ -174,9 +174,9 @@ func EnsureConfigSymlink(mainPath, newWorktreePath string) error {
 	return os.Symlink(src, dst)
 }
 
-// getMainWorktreePath returns the path of the main worktree by parsing
+// GetMainWorktreePath returns the path of the main worktree by parsing
 // the first entry from `git worktree list --porcelain`.
-func getMainWorktreePath(fromDir string) (string, error) {
+func GetMainWorktreePath(fromDir string) (string, error) {
 	cmd := exec.Command("git", "-C", fromDir, "worktree", "list", "--porcelain")
 	output, err := cmd.Output()
 	if err != nil {

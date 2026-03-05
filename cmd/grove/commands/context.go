@@ -49,10 +49,30 @@ func RequireGroveContext(fn func(cmd *cobra.Command, args []string, ctx *GroveCo
 
 		if groveDir == "" {
 			stderr := cli.NewStderr()
-			cli.Error(stderr, "not a grove project")
-			fmt.Fprintln(os.Stderr)
-			cli.Faint(stderr, "Run 'grove init' to initialize a new grove project,")
-			cli.Faint(stderr, "or change to a directory containing a .grove folder.")
+
+			cwd, _ := os.Getwd()
+			diag := grove.DiagnoseNoGrove(cwd)
+
+			switch diag.Reason {
+			case grove.ReasonNotGitRepo:
+				cli.Error(stderr, "not a grove project — not inside a git repository")
+			case grove.ReasonMainWorktreeMissingGrove:
+				cli.Error(stderr, "not a grove project — main worktree has no .grove directory")
+				fmt.Fprintln(os.Stderr)
+				cli.Faint(stderr, "Run 'grove init' from the main worktree:")
+				cli.Faint(stderr, "  cd %s && grove init", diag.MainWorktreePath)
+			case grove.ReasonBrokenConfigSymlink:
+				cli.Error(stderr, "config symlink broken: .grove/config.toml → %s (target missing)", diag.SymlinkTarget)
+				fmt.Fprintln(os.Stderr)
+				cli.Faint(stderr, "Run 'grove init' from the main worktree to recreate,")
+				cli.Faint(stderr, "or 'grove repair' to fix symlinks.")
+			default:
+				cli.Error(stderr, "not a grove project")
+				fmt.Fprintln(os.Stderr)
+				cli.Faint(stderr, "Run 'grove init' to initialize a new grove project,")
+				cli.Faint(stderr, "or change to a directory containing a .grove folder.")
+			}
+
 			os.Exit(exitcode.NotGroveProject)
 			return nil // unreachable
 		}

@@ -300,12 +300,12 @@ func TestGetMainWorktreePath(t *testing.T) {
 	run("git", "init")
 	run("git", "commit", "--allow-empty", "-m", "init")
 
-	got, err := getMainWorktreePath(dir)
+	got, err := GetMainWorktreePath(dir)
 	if err != nil {
-		t.Fatalf("getMainWorktreePath() error = %v", err)
+		t.Fatalf("GetMainWorktreePath() error = %v", err)
 	}
 	if got != dir {
-		t.Errorf("getMainWorktreePath() = %q, want %q", got, dir)
+		t.Errorf("GetMainWorktreePath() = %q, want %q", got, dir)
 	}
 }
 
