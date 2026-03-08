@@ -1432,8 +1432,38 @@ func (m Model) renderStatusBar() string {
 		Styles.TextMuted.Render(fmt.Sprintf(" %d worktrees", len(m.list.Items()))),
 	}
 
-	if m.sortMode != SortByName {
+	narrow := m.width < 80
+
+	// Always show sort mode (including default "name")
+	if narrow {
+		parts = append(parts, Styles.TextMuted.Render("↕"))
+	} else {
 		parts = append(parts, Styles.TextMuted.Render("↕ "+m.sortMode.String()))
+	}
+
+	// Always show view mode
+	viewLabel := "detailed"
+	if m.compactMode {
+		viewLabel = "compact"
+	}
+	if narrow {
+		parts = append(parts, Styles.TextMuted.Render("☰"))
+	} else {
+		parts = append(parts, Styles.TextMuted.Render("☰ "+viewLabel))
+	}
+
+	// Show filter when active (Filtering or FilterApplied)
+	if m.list.FilterState() != list.Unfiltered {
+		filterText := m.list.FilterValue()
+		matchCount := len(m.list.VisibleItems())
+		totalCount := len(m.list.Items())
+		if narrow {
+			badge := fmt.Sprintf("🔍 %d/%d", matchCount, totalCount)
+			parts = append(parts, Styles.TextNormal.Render(badge))
+		} else {
+			badge := fmt.Sprintf("🔍 %s [%d/%d]", filterText, matchCount, totalCount)
+			parts = append(parts, Styles.TextNormal.Render(badge))
+		}
 	}
 
 	if msg := m.toast.Message(); msg != "" {
