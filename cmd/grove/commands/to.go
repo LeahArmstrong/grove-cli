@@ -15,19 +15,19 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
 
-// DirtyAction represents the resolved action to take when the current worktree has uncommitted changes.
-type DirtyAction int
+// dirtyAction represents the resolved action to take when the current worktree has uncommitted changes.
+type dirtyAction int
 
 const (
-	actionAllow  DirtyAction = iota // Proceed with switch
+	actionAllow  dirtyAction = iota // Proceed with switch
 	actionStash                     // Auto-stash changes before switching
 	actionPrompt                    // Ask the user interactively
 	actionRefuse                    // Block the switch
 )
 
-// resolveDirtyAction determines what to do when switching away from a worktree
+// resolvedirtyAction determines what to do when switching away from a worktree
 // based on the configured dirty handling mode, current state, and environment.
-func resolveDirtyAction(dirtyHandling string, isDirty, isPeek, isInteractive bool) DirtyAction {
+func resolvedirtyAction(dirtyHandling string, isDirty, isPeek, isInteractive bool) dirtyAction {
 	// Peek mode always allows — it's a lightweight switch that skips hooks
 	if isPeek {
 		return actionAllow
@@ -114,7 +114,7 @@ When using shell integration, this will also change your current directory.`,
 				log.Printf("failed to check dirty state: %v", wipErr)
 				// Treat check failure as clean to avoid blocking the user
 			}
-			action := resolveDirtyAction(ctx.Config.Switch.DirtyHandling, hasDirty, toPeek, cli.IsInteractive())
+			action := resolvedirtyAction(ctx.Config.Switch.DirtyHandling, hasDirty, toPeek, cli.IsInteractive())
 			switch action {
 			case actionRefuse:
 				files, _ := wip.ListWIPFiles()

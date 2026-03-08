@@ -11,7 +11,7 @@ func TestResolveDirtyAction(t *testing.T) {
 		isDirty       bool
 		isPeek        bool
 		isInteractive bool
-		want          DirtyAction
+		want          dirtyAction
 	}{
 		// Peek always allows, regardless of dirty state or config
 		{
@@ -110,13 +110,23 @@ func TestResolveDirtyAction(t *testing.T) {
 			isInteractive: false,
 			want:          actionRefuse,
 		},
+
+		// Unknown config value defaults to refuse (safety fallback)
+		{
+			name:          "unknown handling defaults to refuse",
+			dirtyHandling: "bogus",
+			isDirty:       true,
+			isPeek:        false,
+			isInteractive: true,
+			want:          actionRefuse,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := resolveDirtyAction(tt.dirtyHandling, tt.isDirty, tt.isPeek, tt.isInteractive)
+			got := resolvedirtyAction(tt.dirtyHandling, tt.isDirty, tt.isPeek, tt.isInteractive)
 			if got != tt.want {
-				t.Errorf("resolveDirtyAction(%q, dirty=%v, peek=%v, interactive=%v) = %v, want %v",
+				t.Errorf("resolvedirtyAction(%q, dirty=%v, peek=%v, interactive=%v) = %v, want %v",
 					tt.dirtyHandling, tt.isDirty, tt.isPeek, tt.isInteractive, got, tt.want)
 			}
 		})

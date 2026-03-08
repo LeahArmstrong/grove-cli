@@ -64,6 +64,11 @@ func (h *HelpFooter) ClearExpiredHighlight() bool {
 	return false
 }
 
+// HasHighlight returns true if any key is currently highlighted (not yet expired).
+func (h *HelpFooter) HasHighlight() bool {
+	return h.highlightedKey != "" && time.Since(h.highlightedAt) < highlightDuration
+}
+
 // viewModeLabel returns "compact" or "detailed" based on current mode.
 // When compact mode is active, the toggle will switch to detailed, and vice versa.
 func (h *HelpFooter) viewModeLabel() string {
