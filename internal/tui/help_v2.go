@@ -87,6 +87,7 @@ func (h *HelpFooter) CompactHints(view ActiveView) []Hint {
 			{"enter", "switch"},
 			{"n", "new"},
 			{"d", "delete"},
+			{"R", "rename"},
 			{"f", "fork"},
 			{"s", "sync"},
 			{"c", "config"},
@@ -138,6 +139,11 @@ func (h *HelpFooter) CompactHints(view ActiveView) []Hint {
 			{"↑↓", "navigate"},
 			{"enter", "edit"},
 			{"esc", "close"},
+		}
+	case ViewRename:
+		return []Hint{
+			{"enter", "rename"},
+			{"esc", "cancel"},
 		}
 	default:
 		return []Hint{
@@ -215,6 +221,7 @@ func (h *HelpFooter) RenderExpanded(width int) string {
 			items: []Hint{
 				{"n", "new worktree"},
 				{"d", "delete"},
+				{"R", "rename worktree"},
 				{"f", "fork worktree"},
 				{"s", "sync changes"},
 				{"c", "configure"},

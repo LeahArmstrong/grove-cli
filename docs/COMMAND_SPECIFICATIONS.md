@@ -16,6 +16,7 @@ This document provides exhaustive specifications for each grove command. Every b
    - [grove open](#grove-open)
    - [grove to](#grove-to)
    - [grove rm](#grove-rm)
+   - [grove rename](#grove-rename)
    - [grove here](#grove-here)
    - [grove last](#grove-last)
    - [grove attach](#grove-attach)
@@ -678,6 +679,72 @@ Delete branch anyway? [y/N]:
 - 0: Success
 - 1: Worktree not found
 - 7: Cannot remove (main, protected, current, or dirty without --force)
+
+---
+
+### grove rename
+
+**Purpose:** Rename a worktree, updating its directory, state entry, and tmux session.
+
+**Usage:**
+```
+grove rename <old> <new>
+
+Arguments:
+  old    Current short name of the worktree (required)
+  new    New short name for the worktree (required)
+```
+
+**Behavior:**
+
+1. **Find worktree** by old name (same matching as `grove to`)
+
+2. **Safety checks:**
+   - Cannot rename main worktree
+   - Cannot rename protected worktrees
+   - Cannot rename current worktree (must switch away first)
+   - New name must not already be in use
+
+3. **Move worktree:**
+   ```bash
+   git worktree move <old-path> <new-path>
+   ```
+
+4. **Rename state entry:** Re-key the worktree in `.grove/state.json`
+
+5. **Update path in state:** Update the stored path to reflect the new directory
+
+6. **Rename tmux session** (if exists):
+   ```bash
+   tmux rename-session -t <old-session> <new-session>
+   ```
+
+**Output (Success):**
+```
+✓ Renamed worktree 'old-name' to 'new-name'
+✓ Renamed tmux session 'project-old-name' to 'project-new-name'
+```
+
+**Output (Protected):**
+```
+✗ worktree 'staging' is protected
+```
+**Exit code: 7**
+
+**Edge Cases:**
+
+| Scenario | Behavior |
+|----------|----------|
+| Old name doesn't exist | Error: "worktree 'X' not found" |
+| New name already taken | Error: "a worktree named 'X' already exists" |
+| Is the main worktree | Error: "cannot rename the main worktree" |
+| Is the current worktree | Error: must switch away first |
+| Tmux session doesn't exist | Skip tmux rename, succeed |
+
+**Exit Codes:**
+- 0: Success
+- 1: Worktree not found
+- 7: Cannot rename (main, protected, or current)
 
 ---
 

@@ -92,6 +92,7 @@ Toast levels:
 | `1`–`9` | Quick-switch to nth worktree |
 | `n` | Create new worktree |
 | `d` | Delete selected worktree |
+| `R` | Rename selected worktree |
 | `f` | Fork selected worktree |
 | `s` | Sync changes from another worktree |
 | `c` | Open config editor |
@@ -141,6 +142,19 @@ A confirmation dialog showing:
 Press `y` to confirm, `n` or `esc` to cancel.
 
 > The main worktree and protected worktrees cannot be deleted.
+
+### Rename Worktree (`R`)
+
+A text input overlay for renaming the selected worktree:
+- Shows the current name
+- Text input for the new name
+- Validates that the new name is not empty, not the same, and not taken
+
+Press `enter` to rename, `esc` to cancel.
+
+Renaming moves the git worktree directory, updates the state entry, and renames the associated tmux session.
+
+> The main worktree and protected worktrees cannot be renamed.
 
 ### Fork Worktree (`f`)
 

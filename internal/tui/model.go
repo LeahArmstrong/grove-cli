@@ -37,6 +37,7 @@ const (
 	ViewFork
 	ViewSync
 	ViewConfig
+	ViewRename
 )
 
 // Model is the root Bubble Tea model.
@@ -81,6 +82,7 @@ type Model struct {
 	forkState   *ForkState
 	syncState   *SyncState
 	configState *ConfigState
+	renameState *RenameState
 
 	// Post-create selection
 	pendingSelect string
@@ -450,6 +452,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case renameCompleteMsg:
+		m.activeView = ViewDashboard
+		m.renameState = nil
+		if msg.err != nil {
+			m.toast.Show(NewToast(fmt.Sprintf("Rename failed: %s", msg.err), ToastError))
+		} else {
+			m.toast.Show(NewToast(fmt.Sprintf("Renamed %q to %q", msg.oldName, msg.newName), ToastSuccess))
+			m.pendingSelect = msg.newName
+			cmds = append(cmds, m.spinner.Tick)
+		}
+		cmds = append(cmds, m.fetchWorktrees)
+		return m, tea.Batch(cmds...)
+
 	case spinner.TickMsg:
 		// Tick toast expiry on every spinner tick
 		if m.toast != nil {
@@ -458,7 +473,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Clear expired key highlight
 		m.helpFooter.ClearExpiredHighlight()
 		var spinnerCmds []tea.Cmd
-		if m.loading || (m.createState != nil && m.createState.Creating) || (m.forkState != nil && m.forkState.Forking) || (m.syncState != nil && m.syncState.Syncing) || (m.deleteState != nil && m.deleteState.Deleting) || (m.prState != nil && (m.prState.Loading || m.prState.Creating)) || (m.issueState != nil && (m.issueState.Loading || m.issueState.Creating)) || (m.toast != nil && m.toast.Current != nil) || m.helpFooter.HasHighlight() {
+		if m.loading || (m.createState != nil && m.createState.Creating) || (m.forkState != nil && m.forkState.Forking) || (m.syncState != nil && m.syncState.Syncing) || (m.deleteState != nil && m.deleteState.Deleting) || (m.renameState != nil && m.renameState.Renaming) || (m.prState != nil && (m.prState.Loading || m.prState.Creating)) || (m.issueState != nil && (m.issueState.Loading || m.issueState.Creating)) || (m.toast != nil && m.toast.Current != nil) || m.helpFooter.HasHighlight() {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			spinnerCmds = append(spinnerCmds, cmd)
@@ -649,6 +664,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleSyncKey(msg)
 	case ViewConfig:
 		return m.handleConfigKey(msg)
+	case ViewRename:
+		return m.handleRenameKey(msg)
 	case ViewDashboard:
 		return m.handleDashboardKey(msg)
 	}
@@ -752,6 +769,16 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.activeView = ViewConfig
 		m.configState = NewConfigState()
 		return m, loadConfigCmd()
+
+	case key.Matches(msg, m.keys.Rename):
+		m.helpFooter.SetHighlight("R")
+		item, ok := m.selectedItem()
+		if ok && !item.IsMain && !item.IsProtected {
+			m.activeView = ViewRename
+			m.renameState = NewRenameState(&item)
+			return m, m.renameState.Input.Focus()
+		}
+		return m, nil
 	}
 
 	// Quick-switch: number keys 1-9 jump to nth visible item
@@ -818,6 +845,59 @@ func (m Model) handleDeleteKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m Model) handleRenameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.renameState == nil {
+		m.activeView = ViewDashboard
+		return m, nil
+	}
+
+	if m.renameState.Renaming {
+		return m, nil
+	}
+
+	switch {
+	case key.Matches(msg, m.keys.Escape):
+		m.activeView = ViewDashboard
+		m.renameState = nil
+		return m, nil
+
+	case key.Matches(msg, m.keys.Enter):
+		newName := m.renameState.Input.Value()
+		if newName == "" {
+			m.renameState.Error = "name cannot be empty"
+			return m, nil
+		}
+		if newName == m.renameState.Item.ShortName {
+			m.renameState.Error = "new name is the same as current name"
+			return m, nil
+		}
+
+		// Check if name is already taken
+		for _, li := range m.list.Items() {
+			if item, ok := li.(WorktreeItem); ok {
+				if item.ShortName == newName {
+					m.renameState.Error = fmt.Sprintf("worktree %q already exists", newName)
+					return m, nil
+				}
+			}
+		}
+
+		m.renameState.Error = ""
+		m.renameState.Renaming = true
+		return m, tea.Batch(m.spinner.Tick, renameWorktreeCmd(m.worktreeMgr, m.stateMgr, m.renameState.Item.ShortName, newName))
+
+	default:
+		// Forward to text input
+		var cmd tea.Cmd
+		m.renameState.Input, cmd = m.renameState.Input.Update(msg)
+		// Clear error on typing
+		if m.renameState.Error != "" {
+			m.renameState.Error = ""
+		}
+		return m, cmd
+	}
 }
 
 func (m Model) handleCreateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -1300,6 +1380,13 @@ func (m Model) viewContent() string {
 	case ViewConfig:
 		if m.configState != nil {
 			overlay := renderConfig(m.configState, m.width)
+			bg := m.renderDashboard()
+			return centerOverlay(bg, overlay, m.width, m.height)
+		}
+
+	case ViewRename:
+		if m.renameState != nil {
+			overlay := renderRename(m.renameState, m.width)
 			bg := m.renderDashboard()
 			return centerOverlay(bg, overlay, m.width, m.height)
 		}

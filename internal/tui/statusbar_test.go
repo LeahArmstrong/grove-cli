@@ -97,8 +97,8 @@ func TestStatusBar_FilterBadgeShowsMatchCount(t *testing.T) {
 
 func TestStatusBar_FilterBadgeDuringFiltering(t *testing.T) {
 	m := newTestModel(withItems(5), withSize(100, 24))
-	m.list.SetFilterState(list.Filtering)
 	m.list.SetFilterText("te")
+	m.list.SetFilterState(list.Filtering)
 
 	bar := stripAnsi(m.renderStatusBar())
 	// During active filtering, badge should also appear
