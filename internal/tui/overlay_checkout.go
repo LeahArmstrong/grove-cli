@@ -32,6 +32,7 @@ type CheckoutState struct {
 	BranchCursor      int
 	BranchFilterInput textinput.Model
 	HasWIP            bool
+	WIPCheckDone      bool // true after checkoutWIPCheckMsg is received
 	WIPFiles          []string
 	Stash             bool // true = stash before switching
 	WIPCursor         int  // cursor for WIP options (0=stash, 1=cancel)
@@ -42,21 +43,14 @@ type CheckoutState struct {
 
 // NewCheckoutState creates a new CheckoutState for the given worktree item.
 func NewCheckoutState(item WorktreeItem) *CheckoutState {
+	ti := newBranchFilterInput()
+	ti.Placeholder = "type to filter branches"
 	return &CheckoutState{
 		Step:              CheckoutStepBranch,
 		Item:              item,
-		BranchFilterInput: newCheckoutFilterInput(),
+		BranchFilterInput: ti,
 		Stepper:           NewStepper("Branch", "WIP", "Confirm"),
 	}
-}
-
-// newCheckoutFilterInput creates a configured textinput for branch filtering.
-func newCheckoutFilterInput() textinput.Model {
-	ti := textinput.New()
-	ti.Prompt = "Filter: "
-	ti.Placeholder = "type to filter branches"
-	ti.CharLimit = 100
-	return ti
 }
 
 // --- Messages ---
@@ -213,6 +207,10 @@ func (m Model) handleCheckoutBranchKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		return m, nil
 
 	case key.Matches(msg, m.keys.Enter):
+		// Block until WIP check completes to prevent bypassing stash prompt
+		if !s.WIPCheckDone {
+			return m, nil
+		}
 		filter := s.BranchFilterInput.Value()
 		filtered := filteredBranches(s.Branches, filter)
 		if len(filtered) == 0 {
@@ -297,6 +295,7 @@ func (m Model) handleCheckoutConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 		return m, nil
 
 	case key.Matches(msg, m.keys.Back):
+		s.Stash = false // reset stash decision on back-navigation
 		if s.HasWIP {
 			s.Step = CheckoutStepWIP
 			s.Stepper.Current = 1
@@ -383,6 +382,9 @@ func renderCheckout(s *CheckoutState, width int) string {
 			}
 		}
 
+		if !s.WIPCheckDone {
+			b.WriteString("\n" + indent + Styles.DetailDim.Render("Checking for uncommitted changes...") + "\n")
+		}
 		b.WriteString("\n" + Styles.Footer.Render(indent+"[enter] select  [esc] cancel  type to filter"))
 
 	case CheckoutStepWIP:

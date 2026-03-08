@@ -153,6 +153,7 @@ func TestCheckoutOverlay_SelectBranchCleanSkipsWIP(t *testing.T) {
 	s := NewCheckoutState(item)
 	s.Branches = []string{"main", "develop", "fix/bug"}
 	s.HasWIP = false
+	s.WIPCheckDone = true
 	s.BranchFilterInput.Focus()
 	m.checkoutState = s
 
@@ -181,6 +182,7 @@ func TestCheckoutOverlay_SelectBranchDirtyShowsWIP(t *testing.T) {
 	s := NewCheckoutState(item)
 	s.Branches = []string{"main", "develop", "fix/bug"}
 	s.HasWIP = true
+	s.WIPCheckDone = true
 	s.WIPFiles = []string{"file.go"}
 	s.BranchFilterInput.Focus()
 	m.checkoutState = s
@@ -200,6 +202,7 @@ func TestCheckoutOverlay_NoBranches(t *testing.T) {
 	m.activeView = ViewCheckout
 	s := NewCheckoutState(WorktreeItem{ShortName: "test", Branch: "test"})
 	s.Branches = []string{}
+	s.WIPCheckDone = true
 	s.BranchFilterInput.Focus()
 	m.checkoutState = s
 
@@ -208,6 +211,54 @@ func TestCheckoutOverlay_NoBranches(t *testing.T) {
 	// Should stay on branch step since there's nothing to select
 	if m.checkoutState.Step != CheckoutStepBranch {
 		t.Errorf("expected CheckoutStepBranch with empty list, got %d", m.checkoutState.Step)
+	}
+}
+
+func TestCheckoutOverlay_EnterBlockedBeforeWIPCheck(t *testing.T) {
+	m := newTestModel(withItems(3), withSize(80, 30))
+	m.activeView = ViewCheckout
+	s := NewCheckoutState(WorktreeItem{ShortName: "test", Branch: "test"})
+	s.Branches = []string{"main", "develop"}
+	s.WIPCheckDone = false // WIP check not yet received
+	s.BranchFilterInput.Focus()
+	m.checkoutState = s
+
+	// Enter should be blocked — stays on branch step
+	m = sendKey(m, "enter")
+	if m.checkoutState.Step != CheckoutStepBranch {
+		t.Errorf("expected Enter blocked before WIP check, got step %d", m.checkoutState.Step)
+	}
+	if m.checkoutState.SelectedBranch != "" {
+		t.Errorf("expected no branch selected, got %q", m.checkoutState.SelectedBranch)
+	}
+
+	// After WIP check arrives, Enter should work
+	m = sendMsg(m, checkoutWIPCheckMsg{hasWIP: false})
+	if !m.checkoutState.WIPCheckDone {
+		t.Error("expected WIPCheckDone=true after msg")
+	}
+	m = sendKey(m, "enter")
+	if m.checkoutState.Step != CheckoutStepConfirm {
+		t.Errorf("expected CheckoutStepConfirm after WIP check done, got %d", m.checkoutState.Step)
+	}
+}
+
+func TestCheckoutOverlay_ConfirmBackResetsStash(t *testing.T) {
+	m := newTestModel(withItems(3), withSize(80, 30))
+	m.activeView = ViewCheckout
+	m.checkoutState = &CheckoutState{
+		Step:           CheckoutStepConfirm,
+		Item:           WorktreeItem{ShortName: "test", Branch: "test"},
+		SelectedBranch: "develop",
+		HasWIP:         true,
+		Stash:          true, // previously selected stash
+		Stepper:        NewStepper("Branch", "WIP", "Confirm"),
+	}
+	m.checkoutState.Stepper.Current = 2
+
+	m = sendKey(m, "backspace")
+	if m.checkoutState.Stash {
+		t.Error("expected Stash=false after back-navigation from confirm")
 	}
 }
 
@@ -472,7 +523,7 @@ func TestRenderCheckout_AllSteps(t *testing.T) {
 			Step:              CheckoutStepBranch,
 			Item:              WorktreeItem{ShortName: "feature-auth", Branch: "feature/auth"},
 			Branches:          []string{"main", "develop", "fix/bug"},
-			BranchFilterInput: newBranchFilterInput(),
+			BranchFilterInput: NewCheckoutState(WorktreeItem{}).BranchFilterInput,
 			Stepper:           NewStepper("Branch", "WIP", "Confirm"),
 		}
 		v := renderCheckout(s, 80)
@@ -491,7 +542,7 @@ func TestRenderCheckout_AllSteps(t *testing.T) {
 		s := &CheckoutState{
 			Step:              CheckoutStepBranch,
 			Item:              WorktreeItem{ShortName: "feature-auth", Branch: "feature/auth"},
-			BranchFilterInput: newBranchFilterInput(),
+			BranchFilterInput: NewCheckoutState(WorktreeItem{}).BranchFilterInput,
 			Stepper:           NewStepper("Branch", "WIP", "Confirm"),
 		}
 		v := renderCheckout(s, 80)
@@ -555,7 +606,7 @@ func TestRenderCheckout_AllSteps(t *testing.T) {
 			Step:              CheckoutStepBranch,
 			Item:              WorktreeItem{ShortName: "test"},
 			Err:               errTest,
-			BranchFilterInput: newBranchFilterInput(),
+			BranchFilterInput: NewCheckoutState(WorktreeItem{}).BranchFilterInput,
 			Stepper:           NewStepper("Branch", "WIP", "Confirm"),
 		}
 		v := renderCheckout(s, 80)
@@ -570,7 +621,7 @@ func TestRenderCheckout_BoundaryWidths(t *testing.T) {
 		Step:              CheckoutStepBranch,
 		Item:              WorktreeItem{ShortName: "test", Branch: "test"},
 		Branches:          []string{"main"},
-		BranchFilterInput: newBranchFilterInput(),
+		BranchFilterInput: NewCheckoutState(WorktreeItem{}).BranchFilterInput,
 		Stepper:           NewStepper("Branch", "WIP", "Confirm"),
 	}
 	// Narrow width

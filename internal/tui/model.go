@@ -487,6 +487,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case checkoutWIPCheckMsg:
 		if m.checkoutState != nil {
 			m.checkoutState.HasWIP = msg.hasWIP
+			m.checkoutState.WIPCheckDone = true
 			m.checkoutState.WIPFiles = msg.files
 			if msg.err != nil {
 				m.checkoutState.Err = msg.err
