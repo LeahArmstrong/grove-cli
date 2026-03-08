@@ -38,6 +38,7 @@ const (
 	ViewSync
 	ViewConfig
 	ViewRename
+	ViewCheckout
 )
 
 // Model is the root Bubble Tea model.
@@ -74,15 +75,16 @@ type Model struct {
 	sortMode SortMode
 
 	// Overlay state
-	deleteState *DeleteState
-	createState *CreateState
-	bulkState   *BulkState
-	prState     *PRViewState
-	issueState  *IssueViewState
-	forkState   *ForkState
-	syncState   *SyncState
-	configState *ConfigState
-	renameState *RenameState
+	deleteState   *DeleteState
+	createState   *CreateState
+	bulkState     *BulkState
+	prState       *PRViewState
+	issueState    *IssueViewState
+	forkState     *ForkState
+	syncState     *SyncState
+	configState   *ConfigState
+	renameState   *RenameState
+	checkoutState *CheckoutState
 
 	// Post-create selection
 	pendingSelect string
@@ -465,6 +467,46 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.fetchWorktrees)
 		return m, tea.Batch(cmds...)
 
+	case checkoutBranchesMsg:
+		if m.checkoutState != nil {
+			if msg.err != nil {
+				m.checkoutState.Err = msg.err
+			} else {
+				// Filter out branches used by other worktrees
+				var available []string
+				for _, br := range msg.branches {
+					if !msg.usedBranches[br] {
+						available = append(available, br)
+					}
+				}
+				m.checkoutState.Branches = available
+			}
+		}
+		return m, nil
+
+	case checkoutWIPCheckMsg:
+		if m.checkoutState != nil {
+			m.checkoutState.HasWIP = msg.hasWIP
+			m.checkoutState.WIPFiles = msg.files
+			if msg.err != nil {
+				m.checkoutState.Err = msg.err
+			}
+		}
+		return m, nil
+
+	case checkoutCompleteMsg:
+		if msg.err != nil {
+			if m.checkoutState != nil {
+				m.checkoutState.Err = msg.err
+				m.checkoutState.Switching = false
+			}
+			return m, nil
+		}
+		m.activeView = ViewDashboard
+		m.checkoutState = nil
+		m.toast.Show(NewToast(fmt.Sprintf("Switched to branch %q", msg.branch), ToastSuccess))
+		return m, tea.Batch(m.spinner.Tick, m.fetchWorktrees)
+
 	case spinner.TickMsg:
 		// Tick toast expiry on every spinner tick
 		if m.toast != nil {
@@ -473,7 +515,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Clear expired key highlight
 		m.helpFooter.ClearExpiredHighlight()
 		var spinnerCmds []tea.Cmd
-		if m.loading || (m.createState != nil && m.createState.Creating) || (m.forkState != nil && m.forkState.Forking) || (m.syncState != nil && m.syncState.Syncing) || (m.deleteState != nil && m.deleteState.Deleting) || (m.renameState != nil && m.renameState.Renaming) || (m.prState != nil && (m.prState.Loading || m.prState.Creating)) || (m.issueState != nil && (m.issueState.Loading || m.issueState.Creating)) || (m.toast != nil && m.toast.Current != nil) || m.helpFooter.HasHighlight() {
+		if m.loading || (m.createState != nil && m.createState.Creating) || (m.forkState != nil && m.forkState.Forking) || (m.syncState != nil && m.syncState.Syncing) || (m.deleteState != nil && m.deleteState.Deleting) || (m.renameState != nil && m.renameState.Renaming) || (m.checkoutState != nil && m.checkoutState.Switching) || (m.prState != nil && (m.prState.Loading || m.prState.Creating)) || (m.issueState != nil && (m.issueState.Loading || m.issueState.Creating)) || (m.toast != nil && m.toast.Current != nil) || m.helpFooter.HasHighlight() {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			spinnerCmds = append(spinnerCmds, cmd)
@@ -666,6 +708,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleConfigKey(msg)
 	case ViewRename:
 		return m.handleRenameKey(msg)
+	case ViewCheckout:
+		return m.handleCheckoutKey(msg)
 	case ViewDashboard:
 		return m.handleDashboardKey(msg)
 	}
@@ -777,6 +821,20 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.activeView = ViewRename
 			m.renameState = NewRenameState(&item)
 			return m, m.renameState.Input.Focus()
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Checkout):
+		m.helpFooter.SetHighlight("b")
+		item, ok := m.selectedItem()
+		if ok && !item.IsMain && !item.IsProtected {
+			m.activeView = ViewCheckout
+			m.checkoutState = NewCheckoutState(item)
+			return m, tea.Batch(
+				m.checkoutState.BranchFilterInput.Focus(),
+				listCheckoutBranchesCmd(m.projectRoot, item.Path),
+				checkoutWIPCmd(item),
+			)
 		}
 		return m, nil
 	}
@@ -1387,6 +1445,13 @@ func (m Model) viewContent() string {
 	case ViewRename:
 		if m.renameState != nil {
 			overlay := renderRename(m.renameState, m.width)
+			bg := m.renderDashboard()
+			return centerOverlay(bg, overlay, m.width, m.height)
+		}
+
+	case ViewCheckout:
+		if m.checkoutState != nil {
+			overlay := renderCheckout(m.checkoutState, m.width)
 			bg := m.renderDashboard()
 			return centerOverlay(bg, overlay, m.width, m.height)
 		}

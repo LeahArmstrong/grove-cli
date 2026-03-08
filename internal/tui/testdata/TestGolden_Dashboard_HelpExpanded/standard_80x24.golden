@@ -12,6 +12,8 @@
   │  help                                                                    │
   │                            [1mf         [mfork          [1mq         [mquit        │
   │                          worktree                                        │
+  │                            [1mb         [mswitch                              │
+  │                          branch                                          │
   │                            [1ms         [msync changes                        │
   │                            [1mc         [mconfigure                           │
   │                            [1mp         [mbrowse PRs                          │
@@ -20,5 +22,3 @@
   │                            [1ma         [mbulk delete                         │
   │                            [1mo         [mcycle sort                          │
   │                            [1mr         [mrefresh                             │
-  │                                                                          │
-  │  Press ? again to close                                                  │
