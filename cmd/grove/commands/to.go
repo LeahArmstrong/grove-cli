@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -13,6 +14,46 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/tmux"
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
+
+// DirtyAction represents the resolved action to take when the current worktree has uncommitted changes.
+type DirtyAction int
+
+const (
+	actionAllow  DirtyAction = iota // Proceed with switch
+	actionStash                     // Auto-stash changes before switching
+	actionPrompt                    // Ask the user interactively
+	actionRefuse                    // Block the switch
+)
+
+// resolveDirtyAction determines what to do when switching away from a worktree
+// based on the configured dirty handling mode, current state, and environment.
+func resolveDirtyAction(dirtyHandling string, isDirty, isPeek, isInteractive bool) DirtyAction {
+	// Peek mode always allows — it's a lightweight switch that skips hooks
+	if isPeek {
+		return actionAllow
+	}
+
+	// Clean worktree always allows — nothing to protect
+	if !isDirty {
+		return actionAllow
+	}
+
+	// Dirty worktree: resolve based on config
+	switch dirtyHandling {
+	case "refuse":
+		return actionRefuse
+	case "auto-stash":
+		return actionStash
+	case "prompt":
+		if isInteractive {
+			return actionPrompt
+		}
+		// Non-interactive fallback: refuse (safe default)
+		return actionRefuse
+	default:
+		return actionRefuse
+	}
+}
 
 var (
 	toJSON bool
@@ -65,6 +106,50 @@ When using shell integration, this will also change your current directory.`,
 		if currentTree != nil {
 			prevWorktree = currentTree.DisplayName()
 			prevWorktreePath = currentTree.Path
+
+			// Check for dirty worktree before allowing switch
+			wip := worktree.NewWIPHandler(currentTree.Path)
+			hasDirty, wipErr := wip.HasWIP()
+			if wipErr != nil {
+				log.Printf("failed to check dirty state: %v", wipErr)
+				// Treat check failure as clean to avoid blocking the user
+			}
+			action := resolveDirtyAction(ctx.Config.Switch.DirtyHandling, hasDirty, toPeek, cli.IsInteractive())
+			switch action {
+			case actionRefuse:
+				files, _ := wip.ListWIPFiles()
+				msg := fmt.Sprintf("worktree '%s' has uncommitted changes", prevWorktree)
+				if len(files) > 0 {
+					msg += ":\n  " + strings.Join(files, "\n  ")
+				}
+				msg += "\n\nCommit or stash your changes, or set dirty_handling = \"auto-stash\" in .grove/config.toml"
+				return fmt.Errorf("%s", msg)
+			case actionStash:
+				stashMsg := fmt.Sprintf("grove: auto-stash before switch to %s", name)
+				if stashErr := wip.Stash(stashMsg); stashErr != nil {
+					return fmt.Errorf("failed to auto-stash changes: %w", stashErr)
+				}
+				if !toJSON {
+					cli.Success(stderr, "Stashed changes in '%s'", prevWorktree)
+				}
+			case actionPrompt:
+				files, _ := wip.ListWIPFiles()
+				details := files
+				if len(details) == 0 {
+					details = []string{"(uncommitted changes detected)"}
+				}
+				confirmed, promptErr := cli.ConfirmWithDetails(
+					stderr,
+					fmt.Sprintf("Worktree '%s' has uncommitted changes:", prevWorktree),
+					details,
+					"Switch anyway?",
+					false,
+				)
+				if promptErr != nil || !confirmed {
+					return fmt.Errorf("switch aborted: worktree has uncommitted changes")
+				}
+			}
+
 			// Update last_worktree in state before switching
 			if err := ctx.State.SetLastWorktree(prevWorktree); err != nil {
 				log.Printf("failed to set last worktree %q: %v", prevWorktree, err)
