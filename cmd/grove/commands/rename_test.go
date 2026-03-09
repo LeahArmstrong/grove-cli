@@ -3,6 +3,8 @@ package commands
 import (
 	"strings"
 	"testing"
+
+	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
 
 func TestRenameCmd(t *testing.T) {
@@ -75,5 +77,113 @@ func TestRenameCmdRegistered(t *testing.T) {
 	}
 	if !found {
 		t.Error("rename command not registered on root")
+	}
+}
+
+// mockProtection implements the IsProtected interface for testing.
+type mockProtection struct {
+	protected map[string]bool
+}
+
+func (m *mockProtection) IsProtected(name string) bool {
+	return m.protected[name]
+}
+
+func TestValidateRename(t *testing.T) {
+	normalWT := &worktree.Worktree{ShortName: "feature", Path: "/repo/feature", IsMain: false}
+	mainWT := &worktree.Worktree{ShortName: "root", Path: "/repo/main", IsMain: true}
+	otherWT := &worktree.Worktree{ShortName: "other", Path: "/repo/other", IsMain: false}
+	noCfg := &mockProtection{protected: map[string]bool{}}
+
+	tests := []struct {
+		name      string
+		wt        *worktree.Worktree
+		existing  *worktree.Worktree
+		current   *worktree.Worktree
+		cfg       *mockProtection
+		oldName   string
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "valid rename",
+			wt:      normalWT,
+			current: otherWT,
+			cfg:     noCfg,
+			oldName: "feature",
+			wantErr: false,
+		},
+		{
+			name:      "cannot rename main worktree",
+			wt:        mainWT,
+			current:   otherWT,
+			cfg:       noCfg,
+			oldName:   "root",
+			wantErr:   true,
+			errSubstr: "cannot rename the main worktree",
+		},
+		{
+			name:      "cannot rename protected worktree",
+			wt:        normalWT,
+			current:   otherWT,
+			cfg:       &mockProtection{protected: map[string]bool{"feature": true}},
+			oldName:   "feature",
+			wantErr:   true,
+			errSubstr: "protected",
+		},
+		{
+			name:      "cannot rename to existing name",
+			wt:        normalWT,
+			existing:  otherWT,
+			current:   nil,
+			cfg:       noCfg,
+			oldName:   "feature",
+			wantErr:   true,
+			errSubstr: "already exists",
+		},
+		{
+			name:      "cannot rename current worktree",
+			wt:        normalWT,
+			current:   normalWT, // same path = current
+			cfg:       noCfg,
+			oldName:   "feature",
+			wantErr:   true,
+			errSubstr: "cannot rename current worktree",
+		},
+		{
+			name:    "nil current worktree is fine",
+			wt:      normalWT,
+			current: nil,
+			cfg:     noCfg,
+			oldName: "feature",
+			wantErr: false,
+		},
+		{
+			name:    "nil config is fine",
+			wt:      normalWT,
+			current: otherWT,
+			cfg:     nil,
+			oldName: "feature",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cfg interface{ IsProtected(string) bool }
+			if tt.cfg != nil {
+				cfg = tt.cfg
+			}
+			err := validateRename(tt.wt, tt.existing, tt.current, cfg, tt.oldName)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				} else if tt.errSubstr != "" && !strings.Contains(err.Error(), tt.errSubstr) {
+					t.Errorf("error %q should contain %q", err.Error(), tt.errSubstr)
+				}
+			} else if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
 	}
 }

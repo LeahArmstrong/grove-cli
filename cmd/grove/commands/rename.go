@@ -52,34 +52,19 @@ Examples:
 			os.Exit(exitcode.ResourceNotFound)
 		}
 
-		// Cannot rename the main worktree
-		if wt.IsMain {
-			cli.Error(stderr, "cannot rename the main worktree")
-			os.Exit(exitcode.CannotRemove)
-		}
-
-		// Check protection status
-		cfg := ctx.Config
-		if cfg != nil && cfg.IsProtected(oldName) {
-			cli.Error(stderr, "worktree '%s' is protected", oldName)
-			os.Exit(exitcode.CannotRemove)
-		}
-
 		// Check if new name is already taken
 		existing, err := mgr.Find(newName)
 		if err != nil {
 			return fmt.Errorf("failed to check new name: %w", err)
 		}
-		if existing != nil {
-			cli.Error(stderr, "a worktree named '%s' already exists", newName)
-			os.Exit(exitcode.CannotRemove)
-		}
 
-		// Check if trying to rename the current worktree
+		// Validate rename preconditions
 		currentTree, _ := mgr.GetCurrent()
-		if currentTree != nil && currentTree.Path == wt.Path {
-			cli.Error(stderr, "cannot rename current worktree '%s'", oldName)
-			cli.Info(stderr, "Switch to another worktree first: grove to <name>")
+		if err := validateRename(wt, existing, currentTree, ctx.Config, oldName); err != nil {
+			cli.Error(stderr, "%s", err)
+			if err == errCurrentWorktree {
+				cli.Info(stderr, "Switch to another worktree first: grove to <name>")
+			}
 			os.Exit(exitcode.CannotRemove)
 		}
 
@@ -126,6 +111,29 @@ Examples:
 
 		return nil
 	}),
+}
+
+var (
+	errMainWorktree    = fmt.Errorf("cannot rename the main worktree")
+	errCurrentWorktree = fmt.Errorf("cannot rename current worktree")
+)
+
+// validateRename checks rename preconditions: not main, not protected,
+// not a name collision, and not the current worktree.
+func validateRename(wt, existing, current *worktree.Worktree, cfg interface{ IsProtected(string) bool }, oldName string) error {
+	if wt.IsMain {
+		return errMainWorktree
+	}
+	if cfg != nil && cfg.IsProtected(oldName) {
+		return fmt.Errorf("worktree '%s' is protected", oldName)
+	}
+	if existing != nil {
+		return fmt.Errorf("a worktree named '%s' already exists", existing.ShortName)
+	}
+	if current != nil && current.Path == wt.Path {
+		return errCurrentWorktree
+	}
+	return nil
 }
 
 func init() {

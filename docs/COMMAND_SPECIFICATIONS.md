@@ -469,23 +469,32 @@ Flags:
    - Fall back to full name match
    - Error if worktree is stale (directory missing)
 
-2. **Handle tmux session:**
+2. **Check dirty state** (unless `--peek`):
+   - Inspect the *current* worktree for uncommitted changes (`git status --porcelain`)
+   - Behavior controlled by `switch.dirty_handling` in `.grove/config.toml`:
+     - `"refuse"` (default): Block the switch, list dirty files, suggest committing/stashing or changing config
+     - `"auto-stash"`: Automatically run `git stash push -m "grove: auto-stash before switch to {name}"`, then proceed
+     - `"prompt"`: In interactive mode (TTY), show dirty files and ask "Switch anyway?". In non-interactive mode, fall back to refuse behavior
+   - If the dirty check itself fails (e.g., git error), treat the worktree as clean and proceed — never block the user on a failed status check
+   - `--peek` always bypasses dirty checks (peek is a lightweight switch with no side effects)
+
+3. **Handle tmux session:**
    - If session exists and inside tmux: `tmux switch-client -t {session}`
    - If session exists and outside tmux: `tmux attach -t {session}`
    - If session doesn't exist: Create it, then attach/switch
 
-3. **Fire pre-switch hooks** (unless `--peek`).
+4. **Fire pre-switch hooks** (unless `--peek`).
 
-4. **Switch tmux session** (if inside tmux): `tmux switch-client -t {session}`
+5. **Switch tmux session** (if inside tmux): `tmux switch-client -t {session}`
 
-5. **Fire post-switch hooks** (Docker start, etc.) before tmux switch so progress is visible in current session (unless `--peek`).
+6. **Fire post-switch hooks** (Docker start, etc.) before tmux switch so progress is visible in current session (unless `--peek`).
 
-6. **Change directory:**
+7. **Change directory:**
    - If inside tmux: session switch handles navigation
    - If shell integration active: Output `cd:{path}` directive, and `tmux-attach:` directive in auto mode
    - If direct execution: Print cd instructions
 
-7. **Update "last" tracking:**
+8. **Update "last" tracking:**
    - Store current worktree as "last" for `grove last` command
 
 **Output (Inside tmux, via shell wrapper):**
@@ -514,6 +523,32 @@ cd:~/projects/grove-cli-testing
 To attach: tmux attach -t grove-cli-testing
 To enter directory: cd ~/projects/grove-cli-testing
 ```
+
+**Output (Dirty worktree, refuse mode):**
+```
+✗ worktree 'feature-auth' has uncommitted changes:
+  M internal/auth.go
+  ?? internal/auth_test.go
+
+Commit or stash your changes, or set dirty_handling = "auto-stash" in .grove/config.toml
+```
+**Exit code: 1**
+
+**Output (Dirty worktree, auto-stash mode):**
+```
+✓ Stashed changes in 'feature-auth'
+✓ Switched to 'testing'
+```
+
+**Output (Dirty worktree, prompt mode — user declines):**
+```
+⚠ worktree 'feature-auth' has uncommitted changes:
+  M internal/auth.go
+  ?? internal/auth_test.go
+
+Switch anyway? [y/N] n
+```
+**Exit code: 1**
 
 **Output (Worktree not found):**
 ```
@@ -554,6 +589,12 @@ Please be more specific.
 | Partial name matches multiple | Error with list of matches |
 | Frozen worktree | Auto-resume, then switch |
 | Session exists but wrong directory | Detect drift and correct per `tmux.on_switch` setting |
+| Dirty worktree, refuse mode | Block switch, list dirty files, exit 1 |
+| Dirty worktree, auto-stash mode | Stash changes automatically, proceed with switch |
+| Dirty worktree, prompt mode (TTY) | Show dirty files, ask user to confirm, abort or proceed |
+| Dirty worktree, prompt mode (non-TTY) | Fall back to refuse behavior (exit 1) |
+| Dirty worktree with `--peek` | Bypass dirty check entirely, proceed with switch |
+| Dirty check fails (git error) | Treat as clean, proceed with switch |
 
 **Directory Drift Detection:**
 
@@ -569,7 +610,7 @@ Drift is only corrected when the pane is a shell (not running a program).
 
 **Exit Codes:**
 - 0: Success
-- 1: Worktree not found
+- 1: Worktree not found, or switch refused due to dirty worktree
 - 2: Other error
 
 ---

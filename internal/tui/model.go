@@ -753,7 +753,6 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.createState.BranchFilterInput.Focus()
 
 	case key.Matches(msg, m.keys.Delete):
-		m.helpFooter.SetHighlight("d")
 		item, ok := m.selectedItem()
 		if ok && !item.IsMain && !item.IsProtected {
 			m.activeView = ViewDelete
@@ -816,7 +815,6 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, loadConfigCmd()
 
 	case key.Matches(msg, m.keys.Rename):
-		m.helpFooter.SetHighlight("R")
 		item, ok := m.selectedItem()
 		if ok && !item.IsMain && !item.IsProtected {
 			m.activeView = ViewRename
@@ -826,7 +824,6 @@ func (m Model) handleDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keys.Checkout):
-		m.helpFooter.SetHighlight("b")
 		item, ok := m.selectedItem()
 		if ok && !item.IsMain && !item.IsProtected {
 			m.activeView = ViewCheckout
@@ -1518,8 +1515,10 @@ func (m Model) renderDashboard() string {
 		body = lipgloss.JoinVertical(lipgloss.Left, listView, separator, detailView)
 	}
 
-	// Help footer: always show compact hints
-	footer := m.helpFooter.RenderCompact(m.activeView, m.width-4)
+	// Help footer: always render with dashboard hints so the body height
+	// (computed by updateLayout for ViewDashboard) stays consistent.
+	// Overlay-specific hints are shown inside each overlay's content.
+	footer := m.helpFooter.RenderCompact(ViewDashboard, m.width-4)
 
 	// Composite toast onto the header line (right-aligned) to avoid layout shift
 	if m.toast != nil && m.toast.Current != nil {
@@ -1531,6 +1530,17 @@ func (m Model) renderDashboard() string {
 
 	// Wrap body in 1-char horizontal padding for visual framing
 	body = lipgloss.NewStyle().Padding(0, 1).Render(body)
+
+	// Clamp body so that statusBar + body + footer = exactly m.height lines.
+	// Child components (list, viewport) may render extra lines; trimming the
+	// body preserves the footer for overlay compositing.
+	if m.height > 0 {
+		footerLines := strings.Count(footer, "\n") + 1
+		bodyBudget := m.height - 1 - footerLines // 1 for statusBar
+		if bodyBudget > 0 {
+			body = clampLines(body, bodyBudget)
+		}
+	}
 
 	dashboard := lipgloss.JoinVertical(lipgloss.Left, statusBar, body, footer)
 
@@ -1650,6 +1660,21 @@ func compositeToastOnHeader(header, toast string, width int) string {
 
 	// Fallback: just show header
 	return header
+}
+
+// clampLines pads or trims s to exactly n lines.
+func clampLines(s string, n int) string {
+	if n <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for len(lines) < n {
+		lines = append(lines, "")
+	}
+	if len(lines) > n {
+		lines = lines[:n]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func centerOverlay(bg, overlay string, width, height int) string {

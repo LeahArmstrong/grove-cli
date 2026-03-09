@@ -15,46 +15,6 @@ import (
 	"github.com/LeahArmstrong/grove-cli/internal/worktree"
 )
 
-// dirtyAction represents the resolved action to take when the current worktree has uncommitted changes.
-type dirtyAction int
-
-const (
-	actionAllow  dirtyAction = iota // Proceed with switch
-	actionStash                     // Auto-stash changes before switching
-	actionPrompt                    // Ask the user interactively
-	actionRefuse                    // Block the switch
-)
-
-// resolvedirtyAction determines what to do when switching away from a worktree
-// based on the configured dirty handling mode, current state, and environment.
-func resolvedirtyAction(dirtyHandling string, isDirty, isPeek, isInteractive bool) dirtyAction {
-	// Peek mode always allows — it's a lightweight switch that skips hooks
-	if isPeek {
-		return actionAllow
-	}
-
-	// Clean worktree always allows — nothing to protect
-	if !isDirty {
-		return actionAllow
-	}
-
-	// Dirty worktree: resolve based on config
-	switch dirtyHandling {
-	case "refuse":
-		return actionRefuse
-	case "auto-stash":
-		return actionStash
-	case "prompt":
-		if isInteractive {
-			return actionPrompt
-		}
-		// Non-interactive fallback: refuse (safe default)
-		return actionRefuse
-	default:
-		return actionRefuse
-	}
-}
-
 var (
 	toJSON bool
 	toPeek bool
@@ -114,9 +74,9 @@ When using shell integration, this will also change your current directory.`,
 				log.Printf("failed to check dirty state: %v", wipErr)
 				// Treat check failure as clean to avoid blocking the user
 			}
-			action := resolvedirtyAction(ctx.Config.Switch.DirtyHandling, hasDirty, toPeek, cli.IsInteractive())
+			action := worktree.ResolveDirtyAction(ctx.Config.Switch.DirtyHandling, hasDirty, toPeek, cli.IsInteractive())
 			switch action {
-			case actionRefuse:
+			case worktree.DirtyRefuse:
 				files, _ := wip.ListWIPFiles()
 				msg := fmt.Sprintf("worktree '%s' has uncommitted changes", prevWorktree)
 				if len(files) > 0 {
@@ -124,7 +84,7 @@ When using shell integration, this will also change your current directory.`,
 				}
 				msg += "\n\nCommit or stash your changes, or set dirty_handling = \"auto-stash\" in .grove/config.toml"
 				return fmt.Errorf("%s", msg)
-			case actionStash:
+			case worktree.DirtyStash:
 				stashMsg := fmt.Sprintf("grove: auto-stash before switch to %s", name)
 				if stashErr := wip.Stash(stashMsg); stashErr != nil {
 					return fmt.Errorf("failed to auto-stash changes: %w", stashErr)
@@ -132,7 +92,7 @@ When using shell integration, this will also change your current directory.`,
 				if !toJSON {
 					cli.Success(stderr, "Stashed changes in '%s'", prevWorktree)
 				}
-			case actionPrompt:
+			case worktree.DirtyPrompt:
 				files, _ := wip.ListWIPFiles()
 				details := files
 				if len(details) == 0 {
